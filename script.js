@@ -12,12 +12,13 @@
  */
 
 const firebaseConfig = {
-    apiKey: "",                      // 여기에 입력
-    authDomain: "",                  // 여기에 입력
-    projectId: "",                   // 여기에 입력
-    storageBucket: "",               // 여기에 입력
-    messagingSenderId: "",           // 여기에 입력
-    appId: ""                        // 여기에 입력
+  apiKey: "AIzaSyDaeTs9wXNf-Ds_JTGNnV-hHDOvgFTHyhM",
+  authDomain: "multisell-d0df0.firebaseapp.com",
+  projectId: "multisell-d0df0",
+  storageBucket: "multisell-d0df0.firebasestorage.app",
+  messagingSenderId: "418356900394",
+  appId: "1:418356900394:web:3c61d66e4cc5afa5588953",
+  measurementId: "G-5XK10D2ERF"
 };
 
 // Firebase 초기화
@@ -52,9 +53,43 @@ let lastExchangeRateUpdate = null; // 마지막 업데이트 시간
 // 인증 상태 확인
 // ========================================
 
+// 초기화 함수들을 실행하는 메인 함수
+async function initializeApp() {
+    console.log('🚀 앱 초기화 시작...');
+    
+    initializeTabs();
+    initializeModal();
+    initializeForm();
+    initializeFilters();
+    initializeButtons();
+    initializeMarginCalculator();
+    await loadCustomDropdownItems(); // 커스텀 드롭다운 항목 로드 (Firebase)
+    
+    // 환율 정보 자동 로드
+    await fetchExchangeRates();
+    
+    // Firebase 또는 로컬스토리지에서 데이터 로드 (완료될 때까지 대기)
+    await loadTransactions();
+    
+    // 거래내역 필터 초기화 (브라우저 캐시 방지)
+    document.getElementById('filterBuyerName').value = '';
+    document.getElementById('filterBrand').value = '';
+    document.getElementById('filterProduct').value = '';
+    document.getElementById('filterPurchaseSite').value = '';
+    document.getElementById('filterPlatform').value = '';
+    document.getElementById('filterCurrency').value = '';
+    document.getElementById('filterYear').value = '';
+    
+    // 데이터 로드 후 화면 업데이트
+    updateStatistics();
+    displayTransactions();
+    
+    console.log('✅ 앱 초기화 완료!');
+}
+
 // 로그인 상태 확인 및 리디렉션
-if (isFirebaseEnabled) {
-    auth.onAuthStateChanged((user) => {
+if (isFirebaseEnabled && auth) {
+    auth.onAuthStateChanged(async (user) => {
         if (user) {
             // 로그인됨
             currentUser = user;
@@ -63,7 +98,14 @@ if (isFirebaseEnabled) {
             // 사용자 정보 표시
             updateUserInfo(user);
             
-            // 데이터 로드는 DOMContentLoaded에서 처리
+            // DOM이 준비되었는지 확인
+            if (document.readyState === 'loading') {
+                // DOM이 아직 로딩 중이면 대기
+                document.addEventListener('DOMContentLoaded', initializeApp);
+            } else {
+                // DOM이 이미 준비되었으면 바로 초기화
+                await initializeApp();
+            }
         } else {
             // 로그인 안 됨 - 로그인 페이지로 리디렉션
             console.log('❌ 로그인 필요');
@@ -71,7 +113,22 @@ if (isFirebaseEnabled) {
         }
     });
 } else {
-    console.warn('⚠️ Firebase가 설정되지 않아 로그인 없이 작동합니다 (개발 모드)');
+    console.warn('⚠️ Firebase가 설정되지 않아 로그인 없이 로컬 모드로 작동합니다');
+    console.log('💡 Firebase 설정 방법: SETUP_GUIDE.md 파일을 참고하세요');
+    
+    // 개발 모드: 로그인 없이 바로 초기화
+    // 사용자 정보 영역을 숨기거나 "로컬 모드" 표시
+    const userInfo = document.querySelector('.user-info');
+    const logoutBtn = document.querySelector('.logout-btn');
+    if (userInfo) {
+        userInfo.innerHTML = '<span style="color: #ff9800; font-weight: 600;">🔧 로컬 모드 (Firebase 미설정)</span>';
+    }
+    if (logoutBtn) {
+        logoutBtn.style.display = 'none';
+    }
+    
+    // DOM 준비되면 초기화
+    document.addEventListener('DOMContentLoaded', initializeApp);
 }
 
 // 사용자 정보 표시
@@ -106,42 +163,6 @@ window.logout = async function() {
         }
     }
 };
-
-// DOM 로드 완료 시 초기화
-document.addEventListener('DOMContentLoaded', async function() {
-    // 인증이 완료될 때까지 대기
-    if (isFirebaseEnabled && !currentUser) {
-        // onAuthStateChanged가 처리할 것임
-        return;
-    }
-    
-    initializeTabs();
-    initializeModal();
-    initializeForm();
-    initializeFilters();
-    initializeButtons();
-    initializeMarginCalculator();
-    await loadCustomDropdownItems(); // 커스텀 드롭다운 항목 로드 (Firebase)
-    
-    // 환율 정보 자동 로드
-    await fetchExchangeRates();
-    
-    // Firebase 또는 로컬스토리지에서 데이터 로드 (완료될 때까지 대기)
-    await loadTransactions();
-    
-    // 거래내역 필터 초기화 (브라우저 캐시 방지)
-    document.getElementById('filterBuyerName').value = '';
-    document.getElementById('filterBrand').value = '';
-    document.getElementById('filterProduct').value = '';
-    document.getElementById('filterPurchaseSite').value = '';
-    document.getElementById('filterPlatform').value = '';
-    document.getElementById('filterCurrency').value = '';
-    document.getElementById('filterYear').value = '';
-    
-    // 데이터 로드 후 화면 업데이트
-    updateStatistics();
-    displayTransactions();
-});
 
 // ========================================
 // Firebase 관련 함수
@@ -388,16 +409,17 @@ function closeModal() {
 
 // 로컬스토리지에서 거래 내역 불러오기
 async function loadTransactions() {
-    if (isFirebaseEnabled) {
-        // Firebase 사용 시
+    if (isFirebaseEnabled && currentUser) {
+        // Firebase 사용 시 (로그인 상태)
         await loadFromFirebase();
         // Firebase에서 불러온 후 로컬스토리지에도 백업
         if (transactions.length > 0) {
             saveTransactions();
         }
     } else {
-        // 로컬스토리지 사용 시
-        const saved = localStorage.getItem('overseasTransactions');
+        // 로컬스토리지 사용 시 (Firebase 미설정 또는 로그아웃 상태)
+        const storageKey = currentUser ? `overseasTransactions_${currentUser.uid}` : 'overseasTransactions_local';
+        const saved = localStorage.getItem(storageKey);
         if (saved) {
             try {
                 transactions = JSON.parse(saved);
@@ -406,6 +428,9 @@ async function loadTransactions() {
                 console.error('❌ 로컬스토리지 파싱 오류:', error);
                 transactions = [];
             }
+        } else {
+            console.log('📭 저장된 거래 내역이 없습니다');
+            transactions = [];
         }
     }
 }
@@ -413,7 +438,8 @@ async function loadTransactions() {
 // 로컬스토리지에 거래 내역 저장
 function saveTransactions() {
     try {
-        localStorage.setItem('overseasTransactions', JSON.stringify(transactions));
+        const storageKey = currentUser ? `overseasTransactions_${currentUser.uid}` : 'overseasTransactions_local';
+        localStorage.setItem(storageKey, JSON.stringify(transactions));
         console.log('💾 로컬스토리지 백업 완료');
     } catch (error) {
         console.error('❌ 로컬스토리지 저장 오류:', error);
@@ -2533,9 +2559,8 @@ function updateBrandChart(transactions) {
                             return (value / 1000000).toFixed(1) + 'M';
                         }
                     }
+                    }
                 }
             }
-        }
     });
 }
-

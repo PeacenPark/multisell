@@ -12,133 +12,88 @@
  */
 
 const firebaseConfig = {
-    apiKey: "",                      // 여기에 입력
-    authDomain: "",                  // 여기에 입력
-    projectId: "",                   // 여기에 입력
-    storageBucket: "",               // 여기에 입력
-    messagingSenderId: "",           // 여기에 입력
-    appId: ""                        // 여기에 입력
+    apiKey: "AIzaSyDaeTs9wXNf-Ds_JTGNnV-hHDOvgFTHyhM",
+  authDomain: "multisell-d0df0.firebaseapp.com",
+  projectId: "multisell-d0df0",
+  storageBucket: "multisell-d0df0.firebasestorage.app",
+  messagingSenderId: "418356900394",
+  appId: "1:418356900394:web:3c61d66e4cc5afa5588953",
+  measurementId: "G-5XK10D2ERF"
 };
 
-// Firebase 초기화
+// ========================================
+// 전역 변수
+// ========================================
 let isFirebaseConfigured = false;
+let auth = null;
+let googleProvider = null;
 
-try {
-    if (firebaseConfig.apiKey && firebaseConfig.projectId) {
-        firebase.initializeApp(firebaseConfig);
-        isFirebaseConfigured = true;
-        console.log('✅ Firebase 초기화 성공');
-    } else {
-        console.warn('⚠️ Firebase 설정이 필요합니다. firebaseConfig를 입력해주세요.');
-        showError('Firebase 설정이 필요합니다. 관리자에게 문의하세요.');
+// ========================================
+// DOM 요소 (나중에 초기화)
+// ========================================
+let loginForm, signupForm, passwordResetForm;
+let loginBtn, signupBtn, resetBtn, googleLoginBtn, googleSignupBtn;
+let showSignup, showLogin, showPasswordReset, backToLogin;
+let authLoading, authError, authSuccess;
+
+// ========================================
+// 메시지 표시 함수 (먼저 정의)
+// ========================================
+
+function showLoading() {
+    if (authLoading) {
+        authLoading.style.display = 'block';
+        hideMessages();
     }
-} catch (error) {
-    console.error('❌ Firebase 초기화 실패:', error);
-    showError('Firebase 초기화에 실패했습니다.');
 }
 
-// ========================================
-// Firebase Authentication
-// ========================================
+function hideLoading() {
+    if (authLoading) {
+        authLoading.style.display = 'none';
+    }
+}
 
-const auth = firebase.auth();
+function showError(message) {
+    if (authError) {
+        authError.textContent = message;
+        authError.style.display = 'block';
+    }
+    if (authSuccess) {
+        authSuccess.style.display = 'none';
+    }
+    hideLoading();
+}
 
-// Google 로그인 프로바이더
-const googleProvider = new firebase.auth.GoogleAuthProvider();
-googleProvider.setCustomParameters({
-    prompt: 'select_account'
-});
+function showSuccess(message) {
+    if (authSuccess) {
+        authSuccess.textContent = message;
+        authSuccess.style.display = 'block';
+    }
+    if (authError) {
+        authError.style.display = 'none';
+    }
+    hideLoading();
+}
 
-// ========================================
-// DOM 요소
-// ========================================
-
-const loginForm = document.getElementById('loginForm');
-const signupForm = document.getElementById('signupForm');
-const passwordResetForm = document.getElementById('passwordResetForm');
-
-const loginBtn = document.getElementById('loginBtn');
-const signupBtn = document.getElementById('signupBtn');
-const resetBtn = document.getElementById('resetBtn');
-const googleLoginBtn = document.getElementById('googleLoginBtn');
-const googleSignupBtn = document.getElementById('googleSignupBtn');
-
-const showSignup = document.getElementById('showSignup');
-const showLogin = document.getElementById('showLogin');
-const showPasswordReset = document.getElementById('showPasswordReset');
-const backToLogin = document.getElementById('backToLogin');
-
-const authLoading = document.getElementById('authLoading');
-const authError = document.getElementById('authError');
-const authSuccess = document.getElementById('authSuccess');
+function hideMessages() {
+    if (authError) authError.style.display = 'none';
+    if (authSuccess) authSuccess.style.display = 'none';
+}
 
 // ========================================
 // 폼 전환
 // ========================================
 
 function showForm(formToShow) {
-    // 모든 폼 숨기기
-    loginForm.classList.remove('active');
-    signupForm.classList.remove('active');
-    passwordResetForm.classList.remove('active');
+    if (loginForm) loginForm.classList.remove('active');
+    if (signupForm) signupForm.classList.remove('active');
+    if (passwordResetForm) passwordResetForm.classList.remove('active');
     
-    // 선택한 폼만 표시
-    formToShow.classList.add('active');
+    if (formToShow) {
+        formToShow.classList.add('active');
+    }
     
-    // 메시지 초기화
     hideMessages();
-}
-
-showSignup.addEventListener('click', (e) => {
-    e.preventDefault();
-    showForm(signupForm);
-});
-
-showLogin.addEventListener('click', (e) => {
-    e.preventDefault();
-    showForm(loginForm);
-});
-
-showPasswordReset.addEventListener('click', (e) => {
-    e.preventDefault();
-    showForm(passwordResetForm);
-});
-
-backToLogin.addEventListener('click', (e) => {
-    e.preventDefault();
-    showForm(loginForm);
-});
-
-// ========================================
-// 메시지 표시 함수
-// ========================================
-
-function showLoading() {
-    authLoading.style.display = 'block';
-    hideMessages();
-}
-
-function hideLoading() {
-    authLoading.style.display = 'none';
-}
-
-function showError(message) {
-    authError.textContent = message;
-    authError.style.display = 'block';
-    authSuccess.style.display = 'none';
-    hideLoading();
-}
-
-function showSuccess(message) {
-    authSuccess.textContent = message;
-    authSuccess.style.display = 'block';
-    authError.style.display = 'none';
-    hideLoading();
-}
-
-function hideMessages() {
-    authError.style.display = 'none';
-    authSuccess.style.display = 'none';
 }
 
 // ========================================
@@ -179,19 +134,52 @@ function validatePassword(password) {
 }
 
 // ========================================
+// Firebase 초기화
+// ========================================
+
+function initializeFirebase() {
+    try {
+        if (typeof firebase === 'undefined') {
+            console.error('❌ Firebase SDK가 로드되지 않았습니다.');
+            showError('Firebase SDK 로드 실패. 페이지를 새로고침해주세요.');
+            return false;
+        }
+
+        if (firebaseConfig.apiKey && firebaseConfig.projectId) {
+            firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            googleProvider = new firebase.auth.GoogleAuthProvider();
+            googleProvider.setCustomParameters({
+                prompt: 'select_account'
+            });
+            isFirebaseConfigured = true;
+            console.log('✅ Firebase 초기화 성공');
+            return true;
+        } else {
+            console.warn('⚠️ Firebase 설정이 필요합니다.');
+            showError('⚠️ Firebase 설정이 필요합니다.\n\n📖 SETUP_GUIDE.md 파일을 참고하여 Firebase 프로젝트를 생성하고 설정을 입력해주세요.');
+            return false;
+        }
+    } catch (error) {
+        console.error('❌ Firebase 초기화 실패:', error);
+        showError('Firebase 초기화 실패: ' + error.message);
+        return false;
+    }
+}
+
+// ========================================
 // 이메일 로그인
 // ========================================
 
-loginBtn.addEventListener('click', async () => {
-    if (!isFirebaseConfigured) {
-        showError('Firebase 설정이 필요합니다.');
+async function handleEmailLogin() {
+    if (!isFirebaseConfigured || !auth) {
+        showError('⚠️ Firebase 설정이 필요합니다.\n\n📖 SETUP_GUIDE.md 파일을 참고하세요.');
         return;
     }
 
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value;
+    const email = document.getElementById('loginEmail')?.value.trim();
+    const password = document.getElementById('loginPassword')?.value;
     
-    // 유효성 검사
     if (!email || !password) {
         showError('이메일과 비밀번호를 입력해주세요.');
         return;
@@ -203,44 +191,34 @@ loginBtn.addEventListener('click', async () => {
     }
     
     showLoading();
-    loginBtn.disabled = true;
+    if (loginBtn) loginBtn.disabled = true;
     
     try {
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         console.log('✅ 로그인 성공:', userCredential.user.uid);
-        
-        // 메인 페이지로 리디렉션
         window.location.href = 'index.html';
     } catch (error) {
         console.error('❌ 로그인 실패:', error);
         showError(getErrorMessage(error.code));
-        loginBtn.disabled = false;
+        if (loginBtn) loginBtn.disabled = false;
     }
-});
-
-// Enter 키로 로그인
-document.getElementById('loginPassword').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        loginBtn.click();
-    }
-});
+}
 
 // ========================================
 // 이메일 회원가입
 // ========================================
 
-signupBtn.addEventListener('click', async () => {
-    if (!isFirebaseConfigured) {
-        showError('Firebase 설정이 필요합니다.');
+async function handleEmailSignup() {
+    if (!isFirebaseConfigured || !auth) {
+        showError('⚠️ Firebase 설정이 필요합니다.\n\n📖 SETUP_GUIDE.md 파일을 참고하세요.');
         return;
     }
 
-    const name = document.getElementById('signupName').value.trim();
-    const email = document.getElementById('signupEmail').value.trim();
-    const password = document.getElementById('signupPassword').value;
-    const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
+    const name = document.getElementById('signupName')?.value.trim();
+    const email = document.getElementById('signupEmail')?.value.trim();
+    const password = document.getElementById('signupPassword')?.value;
+    const passwordConfirm = document.getElementById('signupPasswordConfirm')?.value;
     
-    // 유효성 검사
     if (!name || !email || !password || !passwordConfirm) {
         showError('모든 항목을 입력해주세요.');
         return;
@@ -262,26 +240,20 @@ signupBtn.addEventListener('click', async () => {
     }
     
     showLoading();
-    signupBtn.disabled = true;
+    if (signupBtn) signupBtn.disabled = true;
     
     try {
-        // 계정 생성
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const user = userCredential.user;
         
         console.log('✅ 회원가입 성공:', user.uid);
         
-        // 사용자 프로필 업데이트
         await user.updateProfile({
             displayName: name
         });
         
-        // 이메일 인증 발송 (선택사항)
-        // await user.sendEmailVerification();
-        
         showSuccess('회원가입이 완료되었습니다! 로그인 페이지로 이동합니다.');
         
-        // 2초 후 메인 페이지로 리디렉션
         setTimeout(() => {
             window.location.href = 'index.html';
         }, 2000);
@@ -289,17 +261,17 @@ signupBtn.addEventListener('click', async () => {
     } catch (error) {
         console.error('❌ 회원가입 실패:', error);
         showError(getErrorMessage(error.code));
-        signupBtn.disabled = false;
+        if (signupBtn) signupBtn.disabled = false;
     }
-});
+}
 
 // ========================================
 // Google 로그인
 // ========================================
 
-async function signInWithGoogle() {
-    if (!isFirebaseConfigured) {
-        showError('Firebase 설정이 필요합니다.');
+async function handleGoogleLogin() {
+    if (!isFirebaseConfigured || !auth || !googleProvider) {
+        showError('⚠️ Firebase 설정이 필요합니다.\n\n📖 SETUP_GUIDE.md 파일을 참고하세요.');
         return;
     }
 
@@ -316,7 +288,6 @@ async function signInWithGoogle() {
             photo: user.photoURL
         });
         
-        // 메인 페이지로 리디렉션
         window.location.href = 'index.html';
         
     } catch (error) {
@@ -331,20 +302,17 @@ async function signInWithGoogle() {
     }
 }
 
-googleLoginBtn.addEventListener('click', signInWithGoogle);
-googleSignupBtn.addEventListener('click', signInWithGoogle);
-
 // ========================================
 // 비밀번호 재설정
 // ========================================
 
-resetBtn.addEventListener('click', async () => {
-    if (!isFirebaseConfigured) {
-        showError('Firebase 설정이 필요합니다.');
+async function handlePasswordReset() {
+    if (!isFirebaseConfigured || !auth) {
+        showError('⚠️ Firebase 설정이 필요합니다.\n\n📖 SETUP_GUIDE.md 파일을 참고하세요.');
         return;
     }
 
-    const email = document.getElementById('resetEmail').value.trim();
+    const email = document.getElementById('resetEmail')?.value.trim();
     
     if (!email) {
         showError('이메일을 입력해주세요.');
@@ -357,36 +325,129 @@ resetBtn.addEventListener('click', async () => {
     }
     
     showLoading();
-    resetBtn.disabled = true;
+    if (resetBtn) resetBtn.disabled = true;
     
     try {
         await auth.sendPasswordResetEmail(email);
         
         showSuccess('비밀번호 재설정 이메일을 발송했습니다. 이메일을 확인해주세요.');
         
-        // 3초 후 로그인 폼으로 전환
         setTimeout(() => {
             showForm(loginForm);
-            resetBtn.disabled = false;
+            if (resetBtn) resetBtn.disabled = false;
         }, 3000);
         
     } catch (error) {
         console.error('❌ 비밀번호 재설정 실패:', error);
         showError(getErrorMessage(error.code));
-        resetBtn.disabled = false;
+        if (resetBtn) resetBtn.disabled = false;
     }
-});
+}
 
 // ========================================
-// 인증 상태 확인
+// DOM 로드 완료 후 초기화
 // ========================================
 
-auth.onAuthStateChanged((user) => {
-    if (user) {
-        // 이미 로그인된 경우 메인 페이지로 리디렉션
-        console.log('✅ 이미 로그인됨:', user.uid);
-        window.location.href = 'index.html';
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOM 로드 완료');
+    
+    // DOM 요소 가져오기
+    loginForm = document.getElementById('loginForm');
+    signupForm = document.getElementById('signupForm');
+    passwordResetForm = document.getElementById('passwordResetForm');
+    
+    loginBtn = document.getElementById('loginBtn');
+    signupBtn = document.getElementById('signupBtn');
+    resetBtn = document.getElementById('resetBtn');
+    googleLoginBtn = document.getElementById('googleLoginBtn');
+    googleSignupBtn = document.getElementById('googleSignupBtn');
+    
+    showSignup = document.getElementById('showSignup');
+    showLogin = document.getElementById('showLogin');
+    showPasswordReset = document.getElementById('showPasswordReset');
+    backToLogin = document.getElementById('backToLogin');
+    
+    authLoading = document.getElementById('authLoading');
+    authError = document.getElementById('authError');
+    authSuccess = document.getElementById('authSuccess');
+    
+    // Firebase 초기화
+    const firebaseReady = initializeFirebase();
+    
+    // 폼 전환 이벤트
+    if (showSignup) {
+        showSignup.addEventListener('click', (e) => {
+            e.preventDefault();
+            showForm(signupForm);
+        });
     }
+    
+    if (showLogin) {
+        showLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            showForm(loginForm);
+        });
+    }
+    
+    if (showPasswordReset) {
+        showPasswordReset.addEventListener('click', (e) => {
+            e.preventDefault();
+            showForm(passwordResetForm);
+        });
+    }
+    
+    if (backToLogin) {
+        backToLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            showForm(loginForm);
+        });
+    }
+    
+    // 로그인 버튼
+    if (loginBtn) {
+        loginBtn.addEventListener('click', handleEmailLogin);
+    }
+    
+    // Enter 키로 로그인
+    const loginPasswordInput = document.getElementById('loginPassword');
+    if (loginPasswordInput) {
+        loginPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleEmailLogin();
+            }
+        });
+    }
+    
+    // 회원가입 버튼
+    if (signupBtn) {
+        signupBtn.addEventListener('click', handleEmailSignup);
+    }
+    
+    // Google 로그인 버튼
+    if (googleLoginBtn) {
+        googleLoginBtn.addEventListener('click', handleGoogleLogin);
+    }
+    
+    if (googleSignupBtn) {
+        googleSignupBtn.addEventListener('click', handleGoogleLogin);
+    }
+    
+    // 비밀번호 재설정 버튼
+    if (resetBtn) {
+        resetBtn.addEventListener('click', handlePasswordReset);
+    }
+    
+    // 인증 상태 확인
+    if (firebaseReady && auth) {
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log('✅ 이미 로그인됨:', user.uid);
+                window.location.href = 'index.html';
+            }
+        });
+    }
+    
+    console.log('✅ 초기화 완료');
 });
 
 // ========================================
@@ -398,47 +459,18 @@ console.log(`
 🔧 Firebase Authentication 설정 가이드
 ========================================
 
-1. Firebase Console 접속
-   https://console.firebase.google.com
+⚠️ 현재 Firebase가 설정되지 않았습니다!
 
-2. 프로젝트 생성 또는 선택
+📖 SETUP_GUIDE.md 파일을 열어 단계별 설정 방법을 확인하세요.
 
-3. Authentication 활성화
-   - Build > Authentication > Get Started
-   - Sign-in method 탭으로 이동
-   
-4. 로그인 방법 활성화
-   ✅ Email/Password: 사용 설정
-   ✅ Google: 사용 설정
-   
-5. 웹 앱 구성 정보 가져오기
-   - 프로젝트 설정 > 일반
-   - 내 앱 > 웹 앱 추가 (</>)
-   - firebaseConfig 복사
-   
-6. auth.js 파일 수정
-   - firebaseConfig 객체에 값 붙여넣기
-   
-7. Firestore Database 생성
-   - Build > Firestore Database > Create database
-   - 테스트 모드로 시작 (나중에 보안 규칙 설정)
-   
-8. 보안 규칙 설정 (중요!)
-   - Firestore Database > Rules 탭
-   - 아래 규칙 복사/붙여넣기:
+간단 요약:
+1. Firebase Console 접속 (https://console.firebase.google.com)
+2. 프로젝트 생성
+3. Authentication 활성화 (이메일, Google)
+4. Firestore Database 생성
+5. 웹 앱 구성 정보 복사
+6. auth.js와 script.js의 firebaseConfig에 붙여넣기
 
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null 
-                        && request.auth.uid == userId;
-    }
-  }
-}
-
-9. script.js 파일 수정
-   - firebaseConfig 동일하게 입력
-
+설정 완료 후 페이지를 새로고침하세요!
 ========================================
 `);
