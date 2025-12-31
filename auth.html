@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 - 해외직구 관리 시스템</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="auth-styles.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>🌏 해외직구 관리 시스템</h1>
+                <p class="auth-subtitle">사업자 전용 관리 도구</p>
+            </div>
+
+            <!-- 로그인 폼 -->
+            <div id="loginForm" class="auth-form active">
+                <h2>로그인</h2>
+                
+                <div class="form-group">
+                    <label for="loginEmail">이메일</label>
+                    <input type="email" id="loginEmail" placeholder="example@email.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="loginPassword">비밀번호</label>
+                    <input type="password" id="loginPassword" placeholder="비밀번호 입력" required>
+                </div>
+
+                <button id="loginBtn" class="auth-btn primary">로그인</button>
+                
+                <div class="auth-divider">
+                    <span>또는</span>
+                </div>
+
+                <button id="googleLoginBtn" class="auth-btn google">
+                    <svg width="18" height="18" viewBox="0 0 18 18">
+                        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+                        <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"/>
+                        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                    </svg>
+                    Google로 로그인
+                </button>
+
+                <div class="auth-footer">
+                    <p>계정이 없으신가요? <a href="#" id="showSignup">회원가입</a></p>
+                    <a href="#" id="showPasswordReset" class="forgot-password">비밀번호를 잊으셨나요?</a>
+                </div>
+            </div>
+
+            <!-- 회원가입 폼 -->
+            <div id="signupForm" class="auth-form">
+                <h2>회원가입</h2>
+                
+                <div class="form-group">
+                    <label for="signupName">사업자명 (상호)</label>
+                    <input type="text" id="signupName" placeholder="홍길동 무역" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="signupEmail">이메일</label>
+                    <input type="email" id="signupEmail" placeholder="example@email.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="signupPassword">비밀번호</label>
+                    <input type="password" id="signupPassword" placeholder="8자 이상 입력" required>
+                    <small class="hint">최소 8자 이상 입력해주세요</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="signupPasswordConfirm">비밀번호 확인</label>
+                    <input type="password" id="signupPasswordConfirm" placeholder="비밀번호 재입력" required>
+                </div>
+
+                <button id="signupBtn" class="auth-btn primary">회원가입</button>
+                
+                <div class="auth-divider">
+                    <span>또는</span>
+                </div>
+
+                <button id="googleSignupBtn" class="auth-btn google">
+                    <svg width="18" height="18" viewBox="0 0 18 18">
+                        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+                        <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z"/>
+                        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                    </svg>
+                    Google로 회원가입
+                </button>
+
+                <div class="auth-footer">
+                    <p>이미 계정이 있으신가요? <a href="#" id="showLogin">로그인</a></p>
+                </div>
+            </div>
+
+            <!-- 비밀번호 재설정 폼 -->
+            <div id="passwordResetForm" class="auth-form">
+                <h2>비밀번호 재설정</h2>
+                <p class="reset-description">가입하신 이메일 주소를 입력하시면 비밀번호 재설정 링크를 보내드립니다.</p>
+                
+                <div class="form-group">
+                    <label for="resetEmail">이메일</label>
+                    <input type="email" id="resetEmail" placeholder="example@email.com" required>
+                </div>
+
+                <button id="resetBtn" class="auth-btn primary">재설정 링크 보내기</button>
+
+                <div class="auth-footer">
+                    <p><a href="#" id="backToLogin">로그인으로 돌아가기</a></p>
+                </div>
+            </div>
+
+            <!-- 로딩 스피너 -->
+            <div id="authLoading" class="auth-loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>처리 중...</p>
+            </div>
+
+            <!-- 에러 메시지 -->
+            <div id="authError" class="auth-error" style="display: none;"></div>
+            
+            <!-- 성공 메시지 -->
+            <div id="authSuccess" class="auth-success" style="display: none;"></div>
+        </div>
+
+        <div class="auth-footer-info">
+            <p>© 2025 해외직구 관리 시스템. All rights reserved.</p>
+            <p class="security-note">🔒 모든 데이터는 안전하게 암호화되어 저장됩니다</p>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    
+    <script src="auth.js"></script>
+</body>
+</html>
