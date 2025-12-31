@@ -26,13 +26,12 @@ const firebaseConfig = {
 // ========================================
 let isFirebaseConfigured = false;
 let auth = null;
-let googleProvider = null;
 
 // ========================================
 // DOM 요소 (나중에 초기화)
 // ========================================
 let loginForm, signupForm, passwordResetForm;
-let loginBtn, signupBtn, resetBtn, googleLoginBtn, googleSignupBtn;
+let loginBtn, signupBtn, resetBtn;
 let showSignup, showLogin, showPasswordReset, backToLogin;
 let authLoading, authError, authSuccess;
 
@@ -148,10 +147,6 @@ function initializeFirebase() {
         if (firebaseConfig.apiKey && firebaseConfig.projectId) {
             firebase.initializeApp(firebaseConfig);
             auth = firebase.auth();
-            googleProvider = new firebase.auth.GoogleAuthProvider();
-            googleProvider.setCustomParameters({
-                prompt: 'select_account'
-            });
             isFirebaseConfigured = true;
             console.log('✅ Firebase 초기화 성공');
             return true;
@@ -266,43 +261,6 @@ async function handleEmailSignup() {
 }
 
 // ========================================
-// Google 로그인
-// ========================================
-
-async function handleGoogleLogin() {
-    if (!isFirebaseConfigured || !auth || !googleProvider) {
-        showError('⚠️ Firebase 설정이 필요합니다.\n\n📖 SETUP_GUIDE.md 파일을 참고하세요.');
-        return;
-    }
-
-    showLoading();
-    
-    try {
-        const result = await auth.signInWithPopup(googleProvider);
-        const user = result.user;
-        
-        console.log('✅ Google 로그인 성공:', user.uid);
-        console.log('사용자 정보:', {
-            name: user.displayName,
-            email: user.email,
-            photo: user.photoURL
-        });
-        
-        window.location.href = 'index.html';
-        
-    } catch (error) {
-        console.error('❌ Google 로그인 실패:', error);
-        
-        if (error.code !== 'auth/popup-closed-by-user' && 
-            error.code !== 'auth/cancelled-popup-request') {
-            showError(getErrorMessage(error.code));
-        } else {
-            hideLoading();
-        }
-    }
-}
-
-// ========================================
 // 비밀번호 재설정
 // ========================================
 
@@ -359,8 +317,6 @@ document.addEventListener('DOMContentLoaded', function() {
     loginBtn = document.getElementById('loginBtn');
     signupBtn = document.getElementById('signupBtn');
     resetBtn = document.getElementById('resetBtn');
-    googleLoginBtn = document.getElementById('googleLoginBtn');
-    googleSignupBtn = document.getElementById('googleSignupBtn');
     
     showSignup = document.getElementById('showSignup');
     showLogin = document.getElementById('showLogin');
@@ -423,15 +379,6 @@ document.addEventListener('DOMContentLoaded', function() {
         signupBtn.addEventListener('click', handleEmailSignup);
     }
     
-    // Google 로그인 버튼
-    if (googleLoginBtn) {
-        googleLoginBtn.addEventListener('click', handleGoogleLogin);
-    }
-    
-    if (googleSignupBtn) {
-        googleSignupBtn.addEventListener('click', handleGoogleLogin);
-    }
-    
     // 비밀번호 재설정 버튼
     if (resetBtn) {
         resetBtn.addEventListener('click', handlePasswordReset);
@@ -466,7 +413,7 @@ console.log(`
 간단 요약:
 1. Firebase Console 접속 (https://console.firebase.google.com)
 2. 프로젝트 생성
-3. Authentication 활성화 (이메일, Google)
+3. Authentication 활성화 (이메일/비밀번호)
 4. Firestore Database 생성
 5. 웹 앱 구성 정보 복사
 6. auth.js와 script.js의 firebaseConfig에 붙여넣기

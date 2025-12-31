@@ -12,7 +12,7 @@
  */
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDaeTs9wXNf-Ds_JTGNnV-hHDOvgFTHyhM",
+    apiKey: "AIzaSyDaeTs9wXNf-Ds_JTGNnV-hHDOvgFTHyhM",
   authDomain: "multisell-d0df0.firebaseapp.com",
   projectId: "multisell-d0df0",
   storageBucket: "multisell-d0df0.firebasestorage.app",
@@ -160,6 +160,105 @@ window.logout = async function() {
         } catch (error) {
             console.error('❌ 로그아웃 실패:', error);
             alert('로그아웃 중 오류가 발생했습니다.');
+        }
+    }
+};
+
+// 회원 탈퇴 함수
+window.deleteAccount = async function() {
+    if (!currentUser) {
+        alert('로그인 상태가 아닙니다.');
+        return;
+    }
+    
+    const confirmMessage = `⚠️ 회원 탈퇴 경고 ⚠️
+
+회원 탈퇴를 진행하시겠습니까?
+
+탈퇴 시 다음 데이터가 영구적으로 삭제됩니다:
+• 모든 거래 내역
+• 통계 데이터
+• 사용자 정보
+
+이 작업은 되돌릴 수 없습니다.
+
+정말로 탈퇴하시겠습니까?`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    // 2차 확인
+    const finalConfirm = prompt('정말로 탈퇴하시려면 "탈퇴"를 입력하세요:');
+    if (finalConfirm !== '탈퇴') {
+        alert('탈퇴가 취소되었습니다.');
+        return;
+    }
+    
+    try {
+        const userId = currentUser.uid;
+        const userEmail = currentUser.email;
+        
+        console.log('🗑️ 회원 탈퇴 시작:', userEmail);
+        
+        // 1. Firestore에서 사용자 데이터 삭제
+        if (isFirebaseEnabled && db) {
+            try {
+                // 거래 내역 삭제
+                const transactionsSnapshot = await db.collection('users').doc(userId).collection('transactions').get();
+                const deletePromises = [];
+                transactionsSnapshot.forEach(doc => {
+                    deletePromises.push(doc.ref.delete());
+                });
+                
+                // 커스텀 드롭다운 삭제
+                const customBrandsDoc = db.collection('users').doc(userId).collection('customBrands');
+                const customSitesDoc = db.collection('users').doc(userId).collection('customSites');
+                
+                const brandsSnapshot = await customBrandsDoc.get();
+                brandsSnapshot.forEach(doc => {
+                    deletePromises.push(doc.ref.delete());
+                });
+                
+                const sitesSnapshot = await customSitesDoc.get();
+                sitesSnapshot.forEach(doc => {
+                    deletePromises.push(doc.ref.delete());
+                });
+                
+                await Promise.all(deletePromises);
+                console.log('✅ Firestore 데이터 삭제 완료');
+            } catch (firestoreError) {
+                console.error('❌ Firestore 데이터 삭제 실패:', firestoreError);
+                // Firestore 오류는 무시하고 계속 진행
+            }
+        }
+        
+        // 2. 로컬스토리지 데이터 삭제
+        const storageKey = `overseasTransactions_${userId}`;
+        localStorage.removeItem(storageKey);
+        localStorage.removeItem('customBrands');
+        localStorage.removeItem('customSites');
+        console.log('✅ 로컬스토리지 데이터 삭제 완료');
+        
+        // 3. Firebase Authentication 계정 삭제
+        await currentUser.delete();
+        console.log('✅ 계정 삭제 완료');
+        
+        alert('회원 탈퇴가 완료되었습니다.\n\n그동안 이용해 주셔서 감사합니다.');
+        
+        // 로그인 페이지로 리디렉션
+        window.location.href = 'auth.html';
+        
+    } catch (error) {
+        console.error('❌ 회원 탈퇴 실패:', error);
+        
+        // 재인증이 필요한 경우
+        if (error.code === 'auth/requires-recent-login') {
+            alert('보안을 위해 재로그인이 필요합니다.\n\n로그아웃 후 다시 로그인하여 탈퇴를 진행해주세요.');
+            await auth.signOut();
+            window.location.href = 'auth.html';
+        } else {
+            alert('회원 탈퇴 중 오류가 발생했습니다.\n\n' + error.message);
         }
     }
 };
@@ -2559,8 +2658,8 @@ function updateBrandChart(transactions) {
                             return (value / 1000000).toFixed(1) + 'M';
                         }
                     }
-                    }
                 }
             }
+        }
     });
 }

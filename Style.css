@@ -103,6 +103,30 @@ header {
     transform: translateY(0);
 }
 
+/* 회원 탈퇴 버튼 */
+.delete-account-btn {
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: all 0.3s ease;
+    min-width: 44px;
+    height: 44px;
+}
+
+.delete-account-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+}
+
+.delete-account-btn:active {
+    transform: translateY(0);
+}
+
 .sync-status {
     display: flex;
     align-items: center;
@@ -966,6 +990,13 @@ h2 {
         padding: 6px 12px;
         font-size: 16px;
     }
+    
+    .delete-account-btn {
+        padding: 6px 12px;
+        font-size: 16px;
+        min-width: 40px;
+        height: 40px;
+    }
 
     .tab-nav {
         flex-direction: column;
@@ -1111,6 +1142,13 @@ h2 {
     }
     
     .logout-btn {
+        padding: 6px 12px;
+        font-size: 16px;
+        min-width: 40px;
+        height: 40px;
+    }
+    
+    .delete-account-btn {
         padding: 6px 12px;
         font-size: 16px;
         min-width: 40px;
