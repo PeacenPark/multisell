@@ -773,9 +773,9 @@ async function loadFromFirebase() {
         console.log('📥 Firebase에서 데이터 로드 시작, 사용자:', currentUser.email);
         console.log('🔑 암호화 키 존재 여부:', !!encryptionKey);
         
+        // orderBy 제거 - Firestore 인덱스 불필요, JavaScript에서 정렬
         const snapshot = await db.collection('transactions')
             .where('userId', '==', currentUser.uid)
-            .orderBy('createdAt', 'desc')
             .get();
             
         console.log(`📊 Firebase에서 ${snapshot.size}개 문서 조회됨`);
@@ -793,7 +793,8 @@ async function loadFromFirebase() {
                 if (decrypted) {
                     transactions.push({
                         ...decrypted,
-                        id: doc.id
+                        id: doc.id,
+                        _createdAt: data.createdAt // Firestore 타임스탬프 보존
                     });
                     successCount++;
                 } else {
@@ -807,10 +808,23 @@ async function loadFromFirebase() {
                 // 이전 버전 데이터 (암호화되지 않음)
                 transactions.push({
                     ...data,
-                    id: doc.id
+                    id: doc.id,
+                    _createdAt: data.createdAt
                 });
                 successCount++;
             }
+        });
+        
+        // JavaScript에서 최신순 정렬 (createdAt 또는 purchaseDate 사용)
+        transactions.sort((a, b) => {
+            // Firestore 타임스탬프 우선 사용
+            if (a._createdAt && b._createdAt) {
+                return b._createdAt.toDate() - a._createdAt.toDate();
+            }
+            // 없으면 purchaseDate 사용
+            const dateA = new Date(a.purchaseDate || 0);
+            const dateB = new Date(b.purchaseDate || 0);
+            return dateB - dateA;
         });
         
         console.log(`✅ Firebase 로드 완료: 성공 ${successCount}개, 실패 ${failCount}개`);
@@ -3568,4 +3582,3 @@ async function rejectUser(uid) {
         alert("거부에 실패했습니다.\n" + error.message);
     }
 }
-
