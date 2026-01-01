@@ -45,6 +45,17 @@ let initializeAppCallCount = 0;
 let onAuthStateChangedCallCount = 0;
 let formSubmitCallCount = 0;
 
+// 관리자 이메일 설정 (이 이메일들만 다른 사용자를 승인할 수 있음)
+const ADMIN_EMAILS = [
+    'jisa861@gmail.com',  // 여기에 관리자 이메일 추가
+    // 'admin2@example.com',  // 추가 관리자가 필요하면 여기 추가
+];
+
+// 현재 사용자가 관리자인지 확인
+function isAdmin(email) {
+    return ADMIN_EMAILS.includes(email);
+}
+
 // DOM 로드 완료 시 초기화
 document.addEventListener('DOMContentLoaded', async function() {
     // 인증 상태 감시 시작
@@ -129,6 +140,30 @@ function initializeAuth() {
             currentUser = user;
             
             console.log('✅ 로그인됨:', user.email, '상호명:', user.displayName);
+            
+            // Firestore에서 사용자 승인 상태 확인
+            try {
+                const userDoc = await db.collection('users').doc(user.uid).get();
+                
+                if (userDoc.exists) {
+                    const userData = userDoc.data();
+                    console.log('📄 사용자 정보:', userData);
+                    
+                    // 승인 여부 확인
+                    if (!userData.approved) {
+                        console.warn('⚠️ 승인 대기 중인 사용자');
+                        alert('⚠️ 승인 대기 중입니다.\n\n관리자 승인 후 로그인할 수 있습니다.\n승인 상태는 관리자에게 문의해주세요.');
+                        await auth.signOut();
+                        return;
+                    }
+                    
+                    console.log('✅ 승인된 사용자, 관리자:', userData.isAdmin);
+                } else {
+                    console.warn('⚠️ Firestore에 사용자 정보 없음');
+                }
+            } catch (error) {
+                console.error('❌ 사용자 승인 상태 확인 오류:', error);
+            }
             
             // 세션 스토리지에서 암호화 키 복원
             const savedKey = sessionStorage.getItem('encKey');
@@ -295,6 +330,23 @@ function initializeAuth() {
             });
             console.log('✅ 상호명 저장 완료:', businessName);
             
+            // Firestore에 사용자 정보 저장 (승인 상태 포함)
+            const isUserAdmin = isAdmin(email);
+            try {
+                await db.collection('users').doc(userCredential.user.uid).set({
+                    email: email,
+                    businessName: businessName,
+                    approved: isUserAdmin, // 관리자는 자동 승인, 일반 사용자는 대기
+                    isAdmin: isUserAdmin,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    approvedAt: isUserAdmin ? firebase.firestore.FieldValue.serverTimestamp() : null,
+                    approvedBy: isUserAdmin ? email : null
+                });
+                console.log('✅ 사용자 정보 Firestore 저장 완료, 승인상태:', isUserAdmin ? '자동승인' : '대기중');
+            } catch (error) {
+                console.error('❌ Firestore 사용자 정보 저장 실패:', error);
+            }
+            
             // 폼 초기화
             document.getElementById('signupFormSubmit').reset();
             
@@ -309,8 +361,12 @@ function initializeAuth() {
             // 로그인 화면으로 전환
             showLoginScreen();
             
-            // 성공 메시지 표시
-            alert(`회원가입이 완료되었습니다!\n이메일: ${email}\n상호명: ${businessName}\n\n로그인해주세요.`);
+            // 성공 메시지 표시 (승인 상태에 따라)
+            if (isUserAdmin) {
+                alert(`회원가입이 완료되었습니다!\n이메일: ${email}\n상호명: ${businessName}\n\n관리자 계정이므로 바로 로그인할 수 있습니다.`);
+            } else {
+                alert(`회원가입 신청이 완료되었습니다!\n이메일: ${email}\n상호명: ${businessName}\n\n⚠️ 관리자 승인 후 로그인할 수 있습니다.\n승인 상태는 관리자에게 문의해주세요.`);
+            }
             
             // 로그인 이메일 자동 입력
             document.getElementById('loginEmail').value = email;
@@ -353,7 +409,7 @@ function initializeAuth() {
     });
     
     // 계정 정보 모달 열기
-    document.getElementById('accountInfoBtn').addEventListener('click', () => {
+    document.getElementById('accountInfoBtn').addEventListener('click', async () => {
         const user = auth.currentUser;
         if (user) {
             // 현재 정보 표시
@@ -368,6 +424,14 @@ function initializeAuth() {
             
             // 비밀번호 폼 초기화
             document.getElementById('updatePasswordForm').reset();
+            
+            // 관리자인 경우 승인 관리 섹션 표시
+            if (isAdmin(user.email)) {
+                document.getElementById('approvalSection').style.display = 'block';
+                await loadPendingUsers();
+            } else {
+                document.getElementById('approvalSection').style.display = 'none';
+            }
             
             // 모달 열기
             document.getElementById('accountInfoModal').style.display = 'flex';
@@ -3347,3 +3411,128 @@ function updateBrandChart(transactions) {
         }
     });
 }
+
+// ========================================
+// 회원 승인 관리 함수
+// ========================================
+
+// 승인 대기 중인 사용자 목록 로드
+async function loadPendingUsers() {
+    const container = document.getElementById("pendingUsersList");
+    
+    try {
+        container.innerHTML = "<p style=\"color: #999;\">로딩 중...</p>";
+        
+        // orderBy 제거 - 클라이언트에서 정렬
+        const snapshot = await db.collection("users")
+            .where("approved", "==", false)
+            .get();
+        
+        if (snapshot.empty) {
+            container.innerHTML = "<p style=\"color: #999;\">승인 대기 중인 회원이 없습니다.</p>";
+            return;
+        }
+        
+        // 데이터를 배열로 변환하고 날짜순 정렬
+        const users = [];
+        snapshot.forEach(doc => {
+            users.push({
+                id: doc.id,
+                data: doc.data()
+            });
+        });
+        
+        // 최신순 정렬 (createdAt이 없는 경우 맨 뒤로)
+        users.sort((a, b) => {
+            const dateA = a.data.createdAt ? a.data.createdAt.toDate() : new Date(0);
+            const dateB = b.data.createdAt ? b.data.createdAt.toDate() : new Date(0);
+            return dateB - dateA; // 내림차순
+        });
+        
+        let html = "";
+        users.forEach(userDoc => {
+            const user = userDoc.data;
+            const createdAt = user.createdAt ? user.createdAt.toDate().toLocaleString("ko-KR") : "-";
+            
+            html += `
+                <div class="pending-user-item" data-uid="${userDoc.id}">
+                    <div class="pending-user-info">
+                        <strong>${user.businessName || "이름 없음"}</strong>
+                        <span>${user.email}</span>
+                        <small>가입일: ${createdAt}</small>
+                    </div>
+                    <div class="pending-user-actions">
+                        <button class="btn-approve" onclick="approveUser('${userDoc.id}')">✅ 승인</button>
+                        <button class="btn-reject" onclick="rejectUser('${userDoc.id}')">❌ 거부</button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+        console.log(`✅ 승인 대기 목록 로드 완료: ${users.length}명`);
+        
+    } catch (error) {
+        console.error("❌ 승인 대기 목록 로드 오류:", error);
+        
+        // 상세 오류 메시지 표시
+        let errorMsg = "목록을 불러오는데 실패했습니다.";
+        if (error.code === 'permission-denied') {
+            errorMsg = "권한이 없습니다. Firestore 보안 규칙을 확인하세요.";
+        } else if (error.code === 'failed-precondition') {
+            errorMsg = "Firestore 설정이 필요합니다.";
+        }
+        
+        container.innerHTML = `<p style="color: #dc3545;">${errorMsg}<br><small>${error.message}</small></p>`;
+    }
+}
+
+// 사용자 승인
+async function approveUser(uid) {
+    if (!confirm("이 사용자를 승인하시겠습니까?")) {
+        return;
+    }
+    
+    try {
+        const adminEmail = auth.currentUser.email;
+        
+        await db.collection("users").doc(uid).update({
+            approved: true,
+            approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            approvedBy: adminEmail
+        });
+        
+        console.log("✅ 사용자 승인 완료:", uid);
+        alert("승인되었습니다!");
+        
+        // 목록 새로고침
+        await loadPendingUsers();
+        
+    } catch (error) {
+        console.error("❌ 승인 오류:", error);
+        alert("승인에 실패했습니다.\n" + error.message);
+    }
+}
+
+// 사용자 거부 (계정 삭제)
+async function rejectUser(uid) {
+    if (!confirm("이 사용자를 거부하시겠습니까?\n\n계정이 완전히 삭제됩니다.")) {
+        return;
+    }
+    
+    try {
+        // Firestore에서 사용자 정보 삭제
+        await db.collection("users").doc(uid).delete();
+        
+        console.log("✅ 사용자 거부 완료:", uid);
+        alert("거부되었습니다. 해당 계정이 삭제되었습니다.");
+        
+        // 목록 새로고침
+        await loadPendingUsers();
+        
+    } catch (error) {
+        console.error("❌ 거부 오류:", error);
+        alert("거부에 실패했습니다.\n" + error.message);
+    }
+}
+

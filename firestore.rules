@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ========================================
+    // users 컬렉션 - 회원 승인 시스템
+    // ========================================
+    match /users/{userId} {
+      // 자신의 정보는 읽기 가능
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // 회원가입 시 자신의 정보 생성 가능
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // 관리자는 모든 users 문서 읽기 가능
+      allow read: if request.auth != null && 
+                     exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      
+      // 관리자는 승인 상태 업데이트 가능
+      allow update: if request.auth != null && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      
+      // 관리자는 사용자 삭제 가능 (거부 시)
+      allow delete: if request.auth != null && 
+                       exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // ========================================
+    // transactions 컬렉션 - 거래 내역
+    // ========================================
+    match /transactions/{transactionId} {
+      // 로그인한 사용자는 자신의 거래 읽기/쓰기 가능
+      allow read, write: if request.auth != null && 
+                            request.auth.uid == resource.data.userId;
+      
+      // 새 거래 생성 시
+      allow create: if request.auth != null && 
+                       request.auth.uid == request.resource.data.userId;
+    }
+    
+    // ========================================
+    // customDropdowns 컬렉션 - 커스텀 드롭다운
+    // ========================================
+    match /customDropdowns/{docId} {
+      // 로그인한 사용자만 읽기/쓰기 가능
+      allow read, write: if request.auth != null;
+    }
+  }
+}
