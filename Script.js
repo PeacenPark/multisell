@@ -609,6 +609,16 @@ function initializeAuth() {
                     // 4. Firebase 데이터 삭제 시도 (실패해도 계속 진행)
                     if (isFirebaseEnabled) {
                         try {
+                            console.log('🗑️ Firebase 데이터 삭제 시작...');
+                            
+                            // users 컬렉션 데이터 삭제
+                            try {
+                                await db.collection('users').doc(userId).delete();
+                                console.log('✅ users 컬렉션 데이터 삭제 완료');
+                            } catch (error) {
+                                console.warn('⚠️ users 삭제 실패 (계속 진행):', error);
+                            }
+                            
                             // 거래 데이터 삭제
                             const transactionsSnapshot = await db.collection('transactions')
                                 .where('userId', '==', userId)
@@ -621,7 +631,7 @@ function initializeAuth() {
                                 }));
                             });
                             await Promise.allSettled(deletePromises);
-                            console.log('✅ Firebase 거래 데이터 삭제 시도 완료');
+                            console.log(`✅ Firebase 거래 데이터 ${transactionsSnapshot.size}개 삭제 시도 완료`);
                             
                             // 커스텀 드롭다운 데이터 삭제
                             const customBrandsDoc = db.collection('customDropdowns').doc(`brands_${userId}`);
@@ -631,6 +641,8 @@ function initializeAuth() {
                                 customSitesDoc.delete().catch(err => console.warn('⚠️ 사이트 삭제 실패:', err))
                             ]);
                             console.log('✅ Firebase 커스텀 데이터 삭제 시도 완료');
+                            
+                            console.log('✅ 모든 Firebase 데이터 삭제 완료');
                         } catch (error) {
                             console.warn('⚠️ Firebase 데이터 삭제 중 오류 (계속 진행):', error);
                             // Firebase 삭제 실패해도 계속 진행
@@ -3668,3 +3680,4 @@ async function rejectUser(uid) {
         alert("거부에 실패했습니다.\n" + error.message);
     }
 }
+
