@@ -31,12 +31,70 @@ try {
 let transactions = [];
 let exchangeRates = {}; // 환율 데이터 저장
 let lastExchangeRateUpdate = null; // 마지막 업데이트 시간
+let encryptionKey = null; // 암호화 키 (비밀번호 기반)
+let isFormInitialized = false; // 폼 초기화 플래그 (이벤트 리스너 중복 방지)
 
 // DOM 로드 완료 시 초기화
 document.addEventListener('DOMContentLoaded', async function() {
     // 인증 상태 감시 시작
     initializeAuth();
 });
+
+// ========================================
+// 암호화 관련 함수
+// ========================================
+
+// 비밀번호에서 암호화 키 생성
+function generateEncryptionKey(password) {
+    // PBKDF2를 사용하여 비밀번호에서 키 생성
+    // 솔트는 사용자 이메일로 고정 (일관성 유지)
+    const salt = auth.currentUser ? auth.currentUser.email : 'default-salt';
+    const key = CryptoJS.PBKDF2(password, salt, {
+        keySize: 256/32,
+        iterations: 1000
+    });
+    return key.toString();
+}
+
+// 데이터 암호화
+function encryptData(data) {
+    if (!encryptionKey) {
+        console.warn('⚠️ 암호화 키가 없습니다. 데이터를 평문으로 저장합니다.');
+        return data;
+    }
+    
+    try {
+        const jsonString = JSON.stringify(data);
+        const encrypted = CryptoJS.AES.encrypt(jsonString, encryptionKey).toString();
+        return encrypted;
+    } catch (error) {
+        console.error('❌ 암호화 오류:', error);
+        throw error;
+    }
+}
+
+// 데이터 복호화
+function decryptData(encryptedData) {
+    if (!encryptionKey) {
+        console.warn('⚠️ 암호화 키가 없습니다.');
+        return null;
+    }
+    
+    try {
+        const decrypted = CryptoJS.AES.decrypt(encryptedData, encryptionKey);
+        const jsonString = decrypted.toString(CryptoJS.enc.Utf8);
+        
+        if (!jsonString) {
+            console.error('❌ 복호화 실패: 잘못된 비밀번호이거나 데이터가 손상되었습니다.');
+            return null;
+        }
+        
+        return JSON.parse(jsonString);
+    } catch (error) {
+        console.error('❌ 복호화 오류:', error);
+        return null;
+    }
+}
 
 // ========================================
 // 인증 관련 함수
@@ -50,6 +108,15 @@ function initializeAuth() {
             // 로그인 상태
             currentUser = user;
             console.log('✅ 로그인됨:', user.email);
+            
+            // 세션 스토리지에서 암호화 키 복원
+            const savedKey = sessionStorage.getItem('encKey');
+            if (savedKey) {
+                encryptionKey = savedKey;
+                console.log('✅ 암호화 키 복원됨');
+            } else {
+                console.warn('⚠️ 암호화 키가 없습니다. 데이터를 복호화할 수 없습니다.');
+            }
             
             // 로그인 화면 숨기기, 앱 화면 보이기
             document.getElementById('authContainer').style.display = 'none';
@@ -105,7 +172,11 @@ function initializeAuth() {
         try {
             errorElement.textContent = '';
             await auth.signInWithEmailAndPassword(email, password);
-            console.log('✅ 로그인 성공');
+            
+            // 로그인 성공 후 암호화 키 생성 및 세션 스토리지에 저장
+            encryptionKey = generateEncryptionKey(password);
+            sessionStorage.setItem('encKey', encryptionKey);
+            console.log('✅ 로그인 성공 및 암호화 키 생성');
         } catch (error) {
             console.error('❌ 로그인 오류:', error);
             errorElement.textContent = getAuthErrorMessage(error.code);
@@ -166,7 +237,10 @@ function initializeAuth() {
                 displayName: businessName
             });
             
-            console.log('✅ 회원가입 성공');
+            // 암호화 키 생성 및 세션 스토리지에 저장
+            encryptionKey = generateEncryptionKey(password);
+            sessionStorage.setItem('encKey', encryptionKey);
+            console.log('✅ 회원가입 성공 및 암호화 키 생성');
             
             // 폼 초기화
             document.getElementById('signupFormSubmit').reset();
@@ -183,8 +257,11 @@ function initializeAuth() {
                 await auth.signOut();
                 console.log('✅ 로그아웃 성공');
                 
-                // 데이터 초기화
+                // 데이터 및 암호화 키 초기화
                 transactions = [];
+                encryptionKey = null;
+                sessionStorage.removeItem('encKey');
+                isFormInitialized = false; // 폼 초기화 플래그 리셋
                 
                 // 폼 초기화
                 document.getElementById('loginFormSubmit').reset();
@@ -461,20 +538,40 @@ async function loadFromFirebase() {
         transactions = [];
         snapshot.forEach(doc => {
             const data = doc.data();
-            // Firebase 문서 ID를 거래 ID로 사용
-            transactions.push({ 
-                ...data,
-                id: doc.id
-            });
+            
+            // 암호화된 데이터 복호화
+            if (data.encryptedData && encryptionKey) {
+                const decrypted = decryptData(data.encryptedData);
+                if (decrypted) {
+                    transactions.push({
+                        ...decrypted,
+                        id: doc.id
+                    });
+                } else {
+                    console.error('❌ 거래 데이터 복호화 실패:', doc.id);
+                }
+            } else if (!data.encryptedData) {
+                // 이전 버전 데이터 (암호화되지 않음)
+                transactions.push({
+                    ...data,
+                    id: doc.id
+                });
+            }
         });
-        console.log(`✅ Firebase에서 ${transactions.length}개 거래 불러옴`);
+        console.log(`✅ Firebase에서 ${transactions.length}개 거래 불러옴 (복호화 완료)`);
     } catch (error) {
         console.error('❌ Firebase 불러오기 오류:', error);
         // Firebase 실패 시 로컬스토리지에서 불러오기 시도
         console.log('⚠️ 로컬스토리지에서 데이터 불러오기 시도');
         const saved = localStorage.getItem(`overseasTransactions_${currentUser.uid}`);
         if (saved) {
-            transactions = JSON.parse(saved);
+            const encryptedData = JSON.parse(saved);
+            if (encryptedData && encryptionKey) {
+                const decrypted = decryptData(encryptedData);
+                if (decrypted) {
+                    transactions = decrypted;
+                }
+            }
         }
     }
 }
@@ -487,13 +584,16 @@ async function saveToFirebase(transaction) {
         // id 필드를 제외한 데이터 복사 (Firebase가 자동으로 문서 ID 생성)
         const { id, ...dataToSave } = transaction;
         
+        // 데이터 암호화
+        const encryptedData = encryptData(dataToSave);
+        
         const docRef = await db.collection('transactions').add({
-            ...dataToSave,
             userId: currentUser.uid,
+            encryptedData: encryptedData,
             createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        console.log('✅ Firebase 저장 성공:', docRef.id);
+        console.log('✅ Firebase 저장 성공 (암호화됨):', docRef.id);
         return docRef.id;
     } catch (error) {
         console.error('❌ Firebase 저장 오류:', error);
@@ -509,11 +609,14 @@ async function updateToFirebase(id, transaction) {
         // id 필드를 제외한 데이터 복사
         const { id: _, ...dataToUpdate } = transaction;
         
+        // 데이터 암호화
+        const encryptedData = encryptData(dataToUpdate);
+        
         await db.collection('transactions').doc(id).update({
-            ...dataToUpdate,
+            encryptedData: encryptedData,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        console.log('✅ Firebase 업데이트 성공:', id);
+        console.log('✅ Firebase 업데이트 성공 (암호화됨):', id);
     } catch (error) {
         console.error('❌ Firebase 업데이트 오류:', error);
         throw error;
@@ -595,12 +698,15 @@ function initializeModal() {
         document.getElementById('brandCustom').style.display = 'none';
         document.getElementById('brandCustom').value = '';
         
+        // 구매사이트 커스텀 입력 숨기기
+        document.getElementById('purchaseSiteCustom').style.display = 'none';
+        document.getElementById('purchaseSiteCustom').value = '';
+        
         // 오늘 날짜로 설정
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('purchaseDate').value = today;
         document.getElementById('quantity').value = 1;
         document.getElementById('platformFee').value = 10.0;
-        document.getElementById('purchaseSiteCustom').disabled = true;
         
         // 새 필드 초기화
         document.getElementById('purchaseUrl').value = '';
@@ -699,8 +805,16 @@ function saveTransactions() {
     if (!currentUser) return;
     
     try {
-        localStorage.setItem(`overseasTransactions_${currentUser.uid}`, JSON.stringify(transactions));
-        console.log('💾 로컬스토리지 백업 완료');
+        if (encryptionKey) {
+            // 데이터 암호화 후 저장
+            const encryptedData = encryptData(transactions);
+            localStorage.setItem(`overseasTransactions_${currentUser.uid}`, JSON.stringify(encryptedData));
+            console.log('💾 로컬스토리지 백업 완료 (암호화됨)');
+        } else {
+            // 암호화 키가 없으면 평문으로 저장 (하위 호환성)
+            localStorage.setItem(`overseasTransactions_${currentUser.uid}`, JSON.stringify(transactions));
+            console.log('💾 로컬스토리지 백업 완료 (평문)');
+        }
     } catch (error) {
         console.error('❌ 로컬스토리지 저장 오류:', error);
     }
@@ -712,17 +826,21 @@ function initializeForm() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('purchaseDate').value = today;
 
-    // 구매사이트 선택 시 커스텀 입력 활성화
+    // 이벤트 리스너가 이미 등록되었다면 종료
+    if (isFormInitialized) {
+        return;
+    }
+
+    // 구매사이트 선택 시 커스텀 입력 표시/숨김
     const purchaseSiteSelect = document.getElementById('purchaseSite');
     const purchaseSiteCustom = document.getElementById('purchaseSiteCustom');
 
     purchaseSiteSelect.addEventListener('change', function() {
         if (this.value === 'other') {
-            purchaseSiteCustom.disabled = false;
+            purchaseSiteCustom.style.display = 'block';
             purchaseSiteCustom.required = true;
-            purchaseSiteCustom.focus();
         } else {
-            purchaseSiteCustom.disabled = true;
+            purchaseSiteCustom.style.display = 'none';
             purchaseSiteCustom.required = false;
             purchaseSiteCustom.value = '';
         }
@@ -789,6 +907,9 @@ function initializeForm() {
         e.preventDefault();
         await addTransaction();
     });
+    
+    // 초기화 완료 플래그 설정
+    isFormInitialized = true;
 }
 
 // 실시간 계산
@@ -923,11 +1044,17 @@ async function addTransaction() {
     // 폼 초기화
     form.reset();
     form.removeAttribute('data-editing-id');
+    
+    // 브랜드 커스텀 입력 숨기기
+    document.getElementById('brandCustom').style.display = 'none';
+    
+    // 구매사이트 커스텀 입력 숨기기
+    document.getElementById('purchaseSiteCustom').style.display = 'none';
+    
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('purchaseDate').value = today;
     document.getElementById('quantity').value = 1;
     document.getElementById('platformFee').value = 10.0;
-    document.getElementById('purchaseSiteCustom').disabled = true;
     
     // 계산 결과 초기화
     document.getElementById('calcTotalCost').textContent = '0원';
@@ -998,8 +1125,23 @@ function editTransaction(id) {
     document.getElementById('productName').value = transaction.productName;
     document.getElementById('quantity').value = transaction.quantity;
     document.getElementById('purchaseDate').value = transaction.purchaseDate;
-    document.getElementById('purchaseSite').value = transaction.purchaseSite;
-    document.getElementById('purchaseSiteCustom').value = transaction.purchaseSiteCustom || '';
+    
+    // 구매사이트 처리
+    const siteSelect = document.getElementById('purchaseSite');
+    const siteCustomInput = document.getElementById('purchaseSiteCustom');
+    const siteOptions = Array.from(siteSelect.options).map(opt => opt.value);
+    
+    if (siteOptions.includes(transaction.purchaseSite)) {
+        // 드롭다운에 있는 사이트
+        siteSelect.value = transaction.purchaseSite;
+        siteCustomInput.style.display = 'none';
+    } else {
+        // 드롭다운에 없는 사이트 (기타 - 직접 입력)
+        siteSelect.value = 'other';
+        siteCustomInput.style.display = 'block';
+        siteCustomInput.value = transaction.purchaseSiteCustom || transaction.purchaseSite;
+    }
+    
     document.getElementById('purchaseUrl').value = transaction.purchaseUrl || '';
     document.getElementById('shippingMethod').value = transaction.shippingMethod || 'direct';
     document.getElementById('purchasePrice').value = transaction.purchasePrice;
@@ -1013,11 +1155,6 @@ function editTransaction(id) {
     document.getElementById('platformFee').value = transaction.platformFee;
     document.getElementById('customsDuty').value = transaction.customsDuty;
     document.getElementById('shippingFee').value = transaction.shippingFee;
-
-    // 구매사이트 커스텀 필드 활성화/비활성화
-    if (transaction.purchaseSite === 'other') {
-        document.getElementById('purchaseSiteCustom').disabled = false;
-    }
 
     // 실시간 계산 업데이트
     calculateRealtime();
@@ -1668,36 +1805,72 @@ function initializeMarginCalculator() {
 
 // 커스텀 드롭다운 항목 로드
 async function loadCustomDropdownItems() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        console.warn('⚠️ 로그인 필요');
+        return;
+    }
     
     let customBrands = [];
     let customSites = [];
     
     const userId = currentUser.uid;
     
-    // Firebase에서 커스텀 아이템 로드
-    if (isFirebaseEnabled) {
-        try {
-            const brandsDoc = await db.collection('customDropdowns').doc(`brands_${userId}`).get();
-            const sitesDoc = await db.collection('customDropdowns').doc(`sites_${userId}`).get();
-            
-            if (brandsDoc.exists) {
-                customBrands = brandsDoc.data().list || [];
+    // 암호화 키가 있을 때만 데이터 로드
+    if (encryptionKey) {
+        // Firebase에서 커스텀 아이템 로드
+        if (isFirebaseEnabled) {
+            try {
+                const brandsDoc = await db.collection('customDropdowns').doc(`brands_${userId}`).get();
+                const sitesDoc = await db.collection('customDropdowns').doc(`sites_${userId}`).get();
+                
+                if (brandsDoc.exists) {
+                    const data = brandsDoc.data();
+                    // 암호화된 데이터 복호화
+                    if (data.encryptedList) {
+                        customBrands = decryptData(data.encryptedList) || [];
+                    } else {
+                        // 이전 버전 (암호화 안됨)
+                        customBrands = data.list || [];
+                    }
+                }
+                if (sitesDoc.exists) {
+                    const data = sitesDoc.data();
+                    // 암호화된 데이터 복호화
+                    if (data.encryptedList) {
+                        customSites = decryptData(data.encryptedList) || [];
+                    } else {
+                        // 이전 버전 (암호화 안됨)
+                        customSites = data.list || [];
+                    }
+                }
+                
+                console.log('✅ Firebase에서 커스텀 드롭다운 로드 완료 (복호화):', { customBrands, customSites });
+            } catch (error) {
+                console.error('❌ Firebase 로드 실패, 로컬스토리지 사용:', error);
+                const brandsEncrypted = localStorage.getItem(`customBrands_${userId}`);
+                const sitesEncrypted = localStorage.getItem(`customSites_${userId}`);
+                
+                if (brandsEncrypted) {
+                    customBrands = decryptData(JSON.parse(brandsEncrypted)) || [];
+                }
+                if (sitesEncrypted) {
+                    customSites = decryptData(JSON.parse(sitesEncrypted)) || [];
+                }
             }
-            if (sitesDoc.exists) {
-                customSites = sitesDoc.data().list || [];
-            }
+        } else {
+            // Firebase 비활성화 시 로컬스토리지 사용
+            const brandsEncrypted = localStorage.getItem(`customBrands_${userId}`);
+            const sitesEncrypted = localStorage.getItem(`customSites_${userId}`);
             
-            console.log('✅ Firebase에서 커스텀 드롭다운 로드 완료:', { customBrands, customSites });
-        } catch (error) {
-            console.error('❌ Firebase 로드 실패, 로컬스토리지 사용:', error);
-            customBrands = JSON.parse(localStorage.getItem(`customBrands_${userId}`) || '[]');
-            customSites = JSON.parse(localStorage.getItem(`customSites_${userId}`) || '[]');
+            if (brandsEncrypted) {
+                customBrands = decryptData(JSON.parse(brandsEncrypted)) || [];
+            }
+            if (sitesEncrypted) {
+                customSites = decryptData(JSON.parse(sitesEncrypted)) || [];
+            }
         }
     } else {
-        // Firebase 비활성화 시 로컬스토리지 사용
-        customBrands = JSON.parse(localStorage.getItem(`customBrands_${userId}`) || '[]');
-        customSites = JSON.parse(localStorage.getItem(`customSites_${userId}`) || '[]');
+        console.warn('⚠️ 암호화 키가 없습니다. 데이터를 로드할 수 없습니다.');
     }
     
     // 브랜드 로드
@@ -1826,6 +1999,11 @@ async function loadCustomDropdownItems() {
 async function addCustomBrand(brandName) {
     if (!currentUser) return;
     
+    if (!encryptionKey) {
+        alert('암호화 키가 없습니다. 다시 로그인해주세요.');
+        return;
+    }
+    
     let customBrands = [];
     const userId = currentUser.uid;
     
@@ -1834,14 +2012,26 @@ async function addCustomBrand(brandName) {
         try {
             const brandsDoc = await db.collection('customDropdowns').doc(`brands_${userId}`).get();
             if (brandsDoc.exists) {
-                customBrands = brandsDoc.data().list || [];
+                const data = brandsDoc.data();
+                // 암호화된 데이터 복호화
+                if (data.encryptedList) {
+                    customBrands = decryptData(data.encryptedList) || [];
+                } else {
+                    customBrands = data.list || [];
+                }
             }
         } catch (error) {
             console.error('❌ Firebase 로드 실패, 로컬스토리지 사용:', error);
-            customBrands = JSON.parse(localStorage.getItem(`customBrands_${userId}`) || '[]');
+            const encrypted = localStorage.getItem(`customBrands_${userId}`);
+            if (encrypted) {
+                customBrands = decryptData(JSON.parse(encrypted)) || [];
+            }
         }
     } else {
-        customBrands = JSON.parse(localStorage.getItem(`customBrands_${userId}`) || '[]');
+        const encrypted = localStorage.getItem(`customBrands_${userId}`);
+        if (encrypted) {
+            customBrands = decryptData(JSON.parse(encrypted)) || [];
+        }
     }
     
     // 중복 체크
@@ -1852,21 +2042,24 @@ async function addCustomBrand(brandName) {
 
     customBrands.push(brandName);
     
-    // Firebase에 저장
+    // Firebase에 저장 (암호화)
     if (isFirebaseEnabled) {
         try {
+            const encryptedList = encryptData(customBrands);
             await db.collection('customDropdowns').doc(`brands_${userId}`).set({
-                list: customBrands,
+                encryptedList: encryptedList,
                 userId: userId,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            console.log('✅ Firebase에 브랜드 저장 완료');
+            console.log('✅ Firebase에 브랜드 저장 완료 (암호화)');
         } catch (error) {
             console.error('❌ Firebase 저장 실패, 로컬스토리지에 저장:', error);
-            localStorage.setItem(`customBrands_${userId}`, JSON.stringify(customBrands));
+            const encryptedList = encryptData(customBrands);
+            localStorage.setItem(`customBrands_${userId}`, JSON.stringify(encryptedList));
         }
     } else {
-        localStorage.setItem(`customBrands_${userId}`, JSON.stringify(customBrands));
+        const encryptedList = encryptData(customBrands);
+        localStorage.setItem(`customBrands_${userId}`, JSON.stringify(encryptedList));
     }
 
     // 폼 드롭다운에 추가 (직접 입력 앞에)
@@ -1893,6 +2086,11 @@ async function addCustomBrand(brandName) {
 async function addCustomSite(siteName) {
     if (!currentUser) return;
     
+    if (!encryptionKey) {
+        alert('암호화 키가 없습니다. 다시 로그인해주세요.');
+        return;
+    }
+    
     let customSites = [];
     const userId = currentUser.uid;
     
@@ -1901,14 +2099,26 @@ async function addCustomSite(siteName) {
         try {
             const sitesDoc = await db.collection('customDropdowns').doc(`sites_${userId}`).get();
             if (sitesDoc.exists) {
-                customSites = sitesDoc.data().list || [];
+                const data = sitesDoc.data();
+                // 암호화된 데이터 복호화
+                if (data.encryptedList) {
+                    customSites = decryptData(data.encryptedList) || [];
+                } else {
+                    customSites = data.list || [];
+                }
             }
         } catch (error) {
             console.error('❌ Firebase 로드 실패, 로컬스토리지 사용:', error);
-            customSites = JSON.parse(localStorage.getItem(`customSites_${userId}`) || '[]');
+            const encrypted = localStorage.getItem(`customSites_${userId}`);
+            if (encrypted) {
+                customSites = decryptData(JSON.parse(encrypted)) || [];
+            }
         }
     } else {
-        customSites = JSON.parse(localStorage.getItem(`customSites_${userId}`) || '[]');
+        const encrypted = localStorage.getItem(`customSites_${userId}`);
+        if (encrypted) {
+            customSites = decryptData(JSON.parse(encrypted)) || [];
+        }
     }
     
     // 중복 체크
@@ -1919,21 +2129,24 @@ async function addCustomSite(siteName) {
 
     customSites.push(siteName);
     
-    // Firebase에 저장
+    // Firebase에 저장 (암호화)
     if (isFirebaseEnabled) {
         try {
+            const encryptedList = encryptData(customSites);
             await db.collection('customDropdowns').doc(`sites_${userId}`).set({
-                list: customSites,
+                encryptedList: encryptedList,
                 userId: userId,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            console.log('✅ Firebase에 구매사이트 저장 완료');
+            console.log('✅ Firebase에 구매사이트 저장 완료 (암호화)');
         } catch (error) {
             console.error('❌ Firebase 저장 실패, 로컬스토리지에 저장:', error);
-            localStorage.setItem(`customSites_${userId}`, JSON.stringify(customSites));
+            const encryptedList = encryptData(customSites);
+            localStorage.setItem(`customSites_${userId}`, JSON.stringify(encryptedList));
         }
     } else {
-        localStorage.setItem(`customSites_${userId}`, JSON.stringify(customSites));
+        const encryptedList = encryptData(customSites);
+        localStorage.setItem(`customSites_${userId}`, JSON.stringify(encryptedList));
     }
 
     // 폼 드롭다운에 추가 (기타 앞에)
@@ -1966,6 +2179,11 @@ async function addCustomSite(siteName) {
 async function removeCustomBrand(brandName) {
     if (!currentUser) return;
     
+    if (!encryptionKey) {
+        alert('암호화 키가 없습니다. 다시 로그인해주세요.');
+        return;
+    }
+    
     if (!confirm(`"${brandName}" 브랜드를 삭제하시겠습니까?`)) {
         return;
     }
@@ -1978,34 +2196,49 @@ async function removeCustomBrand(brandName) {
         try {
             const brandsDoc = await db.collection('customDropdowns').doc(`brands_${userId}`).get();
             if (brandsDoc.exists) {
-                customBrands = brandsDoc.data().list || [];
+                const data = brandsDoc.data();
+                // 암호화된 데이터 복호화
+                if (data.encryptedList) {
+                    customBrands = decryptData(data.encryptedList) || [];
+                } else {
+                    customBrands = data.list || [];
+                }
             }
         } catch (error) {
             console.error('❌ Firebase 로드 실패, 로컬스토리지 사용:', error);
-            customBrands = JSON.parse(localStorage.getItem(`customBrands_${userId}`) || '[]');
+            const encrypted = localStorage.getItem(`customBrands_${userId}`);
+            if (encrypted) {
+                customBrands = decryptData(JSON.parse(encrypted)) || [];
+            }
         }
     } else {
-        customBrands = JSON.parse(localStorage.getItem(`customBrands_${userId}`) || '[]');
+        const encrypted = localStorage.getItem(`customBrands_${userId}`);
+        if (encrypted) {
+            customBrands = decryptData(JSON.parse(encrypted)) || [];
+        }
     }
     
     // 목록에서 제거
     customBrands = customBrands.filter(brand => brand !== brandName);
     
-    // Firebase에 저장
+    // Firebase에 저장 (암호화)
     if (isFirebaseEnabled) {
         try {
+            const encryptedList = encryptData(customBrands);
             await db.collection('customDropdowns').doc(`brands_${userId}`).set({
-                list: customBrands,
+                encryptedList: encryptedList,
                 userId: userId,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            console.log('✅ Firebase에서 브랜드 삭제 완료');
+            console.log('✅ Firebase에서 브랜드 삭제 완료 (암호화)');
         } catch (error) {
             console.error('❌ Firebase 삭제 실패, 로컬스토리지에 저장:', error);
-            localStorage.setItem(`customBrands_${userId}`, JSON.stringify(customBrands));
+            const encryptedList = encryptData(customBrands);
+            localStorage.setItem(`customBrands_${userId}`, JSON.stringify(encryptedList));
         }
     } else {
-        localStorage.setItem(`customBrands_${userId}`, JSON.stringify(customBrands));
+        const encryptedList = encryptData(customBrands);
+        localStorage.setItem(`customBrands_${userId}`, JSON.stringify(encryptedList));
     }
 
     // 폼 드롭다운에서 제거
@@ -2032,6 +2265,11 @@ async function removeCustomBrand(brandName) {
 async function removeCustomSite(siteName) {
     if (!currentUser) return;
     
+    if (!encryptionKey) {
+        alert('암호화 키가 없습니다. 다시 로그인해주세요.');
+        return;
+    }
+    
     if (!confirm(`"${siteName}" 구매사이트를 삭제하시겠습니까?`)) {
         return;
     }
@@ -2044,34 +2282,49 @@ async function removeCustomSite(siteName) {
         try {
             const sitesDoc = await db.collection('customDropdowns').doc(`sites_${userId}`).get();
             if (sitesDoc.exists) {
-                customSites = sitesDoc.data().list || [];
+                const data = sitesDoc.data();
+                // 암호화된 데이터 복호화
+                if (data.encryptedList) {
+                    customSites = decryptData(data.encryptedList) || [];
+                } else {
+                    customSites = data.list || [];
+                }
             }
         } catch (error) {
             console.error('❌ Firebase 로드 실패, 로컬스토리지 사용:', error);
-            customSites = JSON.parse(localStorage.getItem(`customSites_${userId}`) || '[]');
+            const encrypted = localStorage.getItem(`customSites_${userId}`);
+            if (encrypted) {
+                customSites = decryptData(JSON.parse(encrypted)) || [];
+            }
         }
     } else {
-        customSites = JSON.parse(localStorage.getItem(`customSites_${userId}`) || '[]');
+        const encrypted = localStorage.getItem(`customSites_${userId}`);
+        if (encrypted) {
+            customSites = decryptData(JSON.parse(encrypted)) || [];
+        }
     }
     
     // 목록에서 제거
     customSites = customSites.filter(site => site !== siteName);
     
-    // Firebase에 저장
+    // Firebase에 저장 (암호화)
     if (isFirebaseEnabled) {
         try {
+            const encryptedList = encryptData(customSites);
             await db.collection('customDropdowns').doc(`sites_${userId}`).set({
-                list: customSites,
+                encryptedList: encryptedList,
                 userId: userId,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            console.log('✅ Firebase에서 구매사이트 삭제 완료');
+            console.log('✅ Firebase에서 구매사이트 삭제 완료 (암호화)');
         } catch (error) {
             console.error('❌ Firebase 삭제 실패, 로컬스토리지에 저장:', error);
-            localStorage.setItem(`customSites_${userId}`, JSON.stringify(customSites));
+            const encryptedList = encryptData(customSites);
+            localStorage.setItem(`customSites_${userId}`, JSON.stringify(encryptedList));
         }
     } else {
-        localStorage.setItem(`customSites_${userId}`, JSON.stringify(customSites));
+        const encryptedList = encryptData(customSites);
+        localStorage.setItem(`customSites_${userId}`, JSON.stringify(encryptedList));
     }
 
     // 폼 드롭다운에서 제거

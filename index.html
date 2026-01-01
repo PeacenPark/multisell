@@ -78,7 +78,6 @@
                 <div class="auth-buttons">
                     <button id="accountInfoBtn" class="btn-account">⚙️ 계정 정보</button>
                     <button id="logoutBtn" class="btn-logout">로그아웃</button>
-                    <button id="deleteAccountBtn" class="btn-delete-account">회원탈퇴</button>
                 </div>
             </div>
         </header>
@@ -334,10 +333,7 @@
                             <button type="button" class="btn-add" id="addSiteBtn" title="구매사이트 추가">➕</button>
                             <button type="button" class="btn-remove" id="removeSiteBtn" title="구매사이트 삭제">❌</button>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="purchaseSiteCustom">사이트명 (기타 선택시)</label>
-                        <input type="text" id="purchaseSiteCustom" placeholder="직접 입력" disabled>
+                        <input type="text" id="purchaseSiteCustom" placeholder="사이트명 직접 입력" style="display: none; margin-top: 8px;">
                     </div>
                 </div>
 
@@ -641,6 +637,13 @@
                     </form>
                     <p class="form-message" id="passwordMessage"></p>
                 </div>
+
+                <!-- 회원탈퇴 -->
+                <div class="account-section account-danger">
+                    <h3>⚠️ 회원탈퇴</h3>
+                    <p class="warning-text">계정을 삭제하면 모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.</p>
+                    <button id="deleteAccountBtn" class="btn-delete-account">회원탈퇴</button>
+                </div>
             </div>
         </div>
     </div>
@@ -649,6 +652,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <!-- Crypto-JS for encryption -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script src="script.js"></script>
