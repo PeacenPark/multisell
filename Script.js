@@ -67,14 +67,15 @@ document.addEventListener('DOMContentLoaded', async function() {
 // ========================================
 
 // 비밀번호에서 암호화 키 생성
-function generateEncryptionKey(password) {
+function generateEncryptionKey(password, email = null) {
     // PBKDF2를 사용하여 비밀번호에서 키 생성
     // 솔트는 사용자 이메일로 고정 (일관성 유지)
-    const salt = auth.currentUser ? auth.currentUser.email : 'default-salt';
+    const salt = email || (auth.currentUser ? auth.currentUser.email : 'default-salt');
     const key = CryptoJS.PBKDF2(password, salt, {
         keySize: 256/32,
         iterations: 1000
     });
+    console.log('🔑 암호화 키 생성, salt:', salt);
     return key.toString();
 }
 
@@ -98,22 +99,28 @@ function encryptData(data) {
 // 데이터 복호화
 function decryptData(encryptedData) {
     if (!encryptionKey) {
-        console.warn('⚠️ 암호화 키가 없습니다.');
+        console.warn('⚠️ 암호화 키가 없습니다. 복호화 불가능.');
+        console.log('💡 힌트: 로그인 시 암호화 키가 생성되었는지 확인하세요.');
         return null;
     }
     
     try {
+        console.log('🔓 복호화 시도 중... (암호화 키 길이:', encryptionKey.length, ')');
         const decrypted = CryptoJS.AES.decrypt(encryptedData, encryptionKey);
         const jsonString = decrypted.toString(CryptoJS.enc.Utf8);
         
         if (!jsonString) {
-            console.error('❌ 복호화 실패: 잘못된 비밀번호이거나 데이터가 손상되었습니다.');
+            console.error('❌ 복호화 실패: 빈 문자열 반환');
+            console.error('   원인: 잘못된 비밀번호 또는 다른 환경에서 생성된 데이터');
+            console.log('💡 해결: 로컬과 배포 페이지에서 같은 비밀번호를 사용했는지 확인');
             return null;
         }
         
+        console.log('✅ 복호화 성공, JSON 길이:', jsonString.length);
         return JSON.parse(jsonString);
     } catch (error) {
-        console.error('❌ 복호화 오류:', error);
+        console.error('❌ 복호화 오류:', error.message);
+        console.error('   암호화 키:', encryptionKey.substring(0, 20) + '...');
         return null;
     }
 }
@@ -260,9 +267,10 @@ function initializeAuth() {
             await auth.signInWithEmailAndPassword(email, password);
             
             // 로그인 성공 후 암호화 키 생성 및 세션 스토리지에 저장
-            encryptionKey = generateEncryptionKey(password);
+            // 이메일을 직접 전달하여 auth.currentUser 타이밍 문제 방지
+            encryptionKey = generateEncryptionKey(password, email);
             sessionStorage.setItem('encKey', encryptionKey);
-            console.log('✅ 로그인 성공 및 암호화 키 생성');
+            console.log('✅ 로그인 성공 및 암호화 키 생성, email:', email);
         } catch (error) {
             console.error('❌ 로그인 오류:', error);
             errorElement.textContent = getAuthErrorMessage(error.code);
@@ -762,11 +770,20 @@ async function loadFromFirebase() {
     if (!isFirebaseEnabled || !currentUser) return;
     
     try {
+        console.log('📥 Firebase에서 데이터 로드 시작, 사용자:', currentUser.email);
+        console.log('🔑 암호화 키 존재 여부:', !!encryptionKey);
+        
         const snapshot = await db.collection('transactions')
             .where('userId', '==', currentUser.uid)
             .orderBy('createdAt', 'desc')
             .get();
+            
+        console.log(`📊 Firebase에서 ${snapshot.size}개 문서 조회됨`);
+        
         transactions = [];
+        let successCount = 0;
+        let failCount = 0;
+        
         snapshot.forEach(doc => {
             const data = doc.data();
             
@@ -778,18 +795,34 @@ async function loadFromFirebase() {
                         ...decrypted,
                         id: doc.id
                     });
+                    successCount++;
                 } else {
                     console.error('❌ 거래 데이터 복호화 실패:', doc.id);
+                    failCount++;
                 }
+            } else if (data.encryptedData && !encryptionKey) {
+                console.error('❌ 암호화 키 없음, 문서 ID:', doc.id);
+                failCount++;
             } else if (!data.encryptedData) {
                 // 이전 버전 데이터 (암호화되지 않음)
                 transactions.push({
                     ...data,
                     id: doc.id
                 });
+                successCount++;
             }
         });
-        console.log(`✅ Firebase에서 ${transactions.length}개 거래 불러옴 (복호화 완료)`);
+        
+        console.log(`✅ Firebase 로드 완료: 성공 ${successCount}개, 실패 ${failCount}개`);
+        
+        if (failCount > 0) {
+            console.warn('⚠️ 일부 데이터 복호화 실패!');
+            console.log('💡 해결 방법:');
+            console.log('   1. 로컬과 배포에서 같은 비밀번호를 사용했는지 확인');
+            console.log('   2. 브라우저 콘솔에서 "🔑 암호화 키 생성, salt:" 로그 확인');
+            console.log('   3. 로컬과 배포에서 salt(이메일)가 같은지 확인');
+        }
+        
     } catch (error) {
         console.error('❌ Firebase 불러오기 오류:', error);
         // Firebase 실패 시 로컬스토리지에서 불러오기 시도
