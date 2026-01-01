@@ -34,6 +34,10 @@ let lastExchangeRateUpdate = null; // 마지막 업데이트 시간
 let encryptionKey = null; // 암호화 키 (비밀번호 기반)
 let isFormInitialized = false; // 폼 초기화 플래그 (이벤트 리스너 중복 방지)
 let isAppInitialized = false; // 앱 초기화 플래그 (onAuthStateChanged 중복 실행 방지)
+let isModalInitialized = false; // 모달 초기화 플래그
+let isButtonsInitialized = false; // 버튼 초기화 플래그
+let isTabsInitialized = false; // 탭 초기화 플래그
+let isSigningUp = false; // 회원가입 중 플래그
 
 // DOM 로드 완료 시 초기화
 document.addEventListener('DOMContentLoaded', async function() {
@@ -105,9 +109,15 @@ function decryptData(encryptedData) {
 function initializeAuth() {
     // 인증 상태 변경 감지
     auth.onAuthStateChanged(async (user) => {
-        console.log('🔄 onAuthStateChanged 트리거, user:', user ? user.email : 'null');
+        console.log('🔄 onAuthStateChanged 트리거, user:', user ? user.email : 'null', 'isSigningUp:', isSigningUp);
         
         if (user) {
+            // 회원가입 중에는 앱 초기화 건너뛰기
+            if (isSigningUp) {
+                console.log('⏭️ 회원가입 중이므로 앱 초기화 건너뜀');
+                return;
+            }
+            
             // 로그인 상태
             currentUser = user;
             
@@ -138,9 +148,13 @@ function initializeAuth() {
             currentUser = null;
             console.log('❌ 로그아웃됨');
             
-            // 폼 초기화 플래그 리셋
+            // 모든 초기화 플래그 리셋
             isFormInitialized = false;
-            console.log('🔄 isFormInitialized 리셋됨');
+            isModalInitialized = false;
+            isButtonsInitialized = false;
+            isTabsInitialized = false;
+            isAppInitialized = false;
+            console.log('🔄 모든 초기화 플래그 리셋됨');
             
             // 앱 화면 숨기기, 로그인 화면 보이기
             document.getElementById('authContainer').style.display = 'flex';
@@ -256,6 +270,9 @@ function initializeAuth() {
             
             console.log('📝 회원가입 시작:', email);
             
+            // 회원가입 플래그 설정
+            isSigningUp = true;
+            
             // 회원가입
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
             console.log('✅ 계정 생성 완료');
@@ -266,22 +283,21 @@ function initializeAuth() {
             });
             console.log('✅ 상호명 저장 완료:', businessName);
             
-            // 프로필 업데이트 완료 대기
-            await userCredential.user.reload();
-            console.log('✅ 프로필 새로고침 완료, displayName:', userCredential.user.displayName);
-            
             // 폼 초기화
             document.getElementById('signupFormSubmit').reset();
             
-            // 회원가입 후 자동 로그아웃 (사용자가 직접 로그인하도록)
-            console.log('🚪 자동 로그아웃 실행');
+            // 즉시 로그아웃 (사용자가 직접 로그인하도록)
+            console.log('🚪 즉시 로그아웃 실행');
             await auth.signOut();
             console.log('✅ 로그아웃 완료');
+            
+            // 회원가입 플래그 해제
+            isSigningUp = false;
             
             // 로그인 화면으로 전환
             showLoginScreen();
             
-            // 성공 메시지 표시 (로그인 화면에)
+            // 성공 메시지 표시
             alert(`회원가입이 완료되었습니다!\n이메일: ${email}\n상호명: ${businessName}\n\n로그인해주세요.`);
             
             // 로그인 이메일 자동 입력
@@ -290,6 +306,9 @@ function initializeAuth() {
         } catch (error) {
             console.error('❌ 회원가입 오류:', error);
             errorElement.textContent = getAuthErrorMessage(error.code);
+            
+            // 에러 발생 시에도 플래그 해제
+            isSigningUp = false;
         }
     });
     
@@ -304,7 +323,13 @@ function initializeAuth() {
                 transactions = [];
                 encryptionKey = null;
                 sessionStorage.removeItem('encKey');
-                isFormInitialized = false; // 폼 초기화 플래그 리셋
+                
+                // 모든 초기화 플래그 리셋
+                isFormInitialized = false;
+                isModalInitialized = false;
+                isButtonsInitialized = false;
+                isTabsInitialized = false;
+                isAppInitialized = false;
                 
                 // 폼 초기화
                 document.getElementById('loginFormSubmit').reset();
@@ -515,6 +540,16 @@ function getAuthErrorMessage(errorCode) {
 
 // 앱 초기화 (로그인 후)
 async function initializeApp() {
+    console.log('🚀 initializeApp 호출됨, isAppInitialized:', isAppInitialized);
+    
+    // 이미 초기화되었다면 종료
+    if (isAppInitialized) {
+        console.log('⏭️ 앱 이미 초기화됨, 건너뜀');
+        return;
+    }
+    
+    console.log('✅ 앱 초기화 시작');
+    
     // 사용자 정보 표시
     const user = auth.currentUser;
     if (user) {
@@ -549,6 +584,10 @@ async function initializeApp() {
     updateStatistics();
     displayTransactions();
     updateSyncStatus(true);
+    
+    // 초기화 완료 플래그 설정
+    isAppInitialized = true;
+    console.log('✅ 앱 초기화 완료');
 }
 
 // ========================================
@@ -703,6 +742,16 @@ async function clearFirebase() {
 
 // 탭 초기화
 function initializeTabs() {
+    console.log('📑 initializeTabs 호출됨, isTabsInitialized:', isTabsInitialized);
+    
+    // 이미 초기화되었다면 종료
+    if (isTabsInitialized) {
+        console.log('⏭️ 탭 이미 초기화됨, 건너뜀');
+        return;
+    }
+    
+    console.log('✅ 탭 이벤트 리스너 등록 시작');
+    
     const tabButtons = document.querySelectorAll('.tab-btn');
     
     tabButtons.forEach(button => {
@@ -722,10 +771,24 @@ function initializeTabs() {
             document.getElementById(targetTab + 'Tab').classList.add('active');
         });
     });
+    
+    // 초기화 완료 플래그 설정
+    isTabsInitialized = true;
+    console.log('✅ 탭 초기화 완료');
 }
 
 // 모달 초기화
 function initializeModal() {
+    console.log('🪟 initializeModal 호출됨, isModalInitialized:', isModalInitialized);
+    
+    // 이미 초기화되었다면 종료
+    if (isModalInitialized) {
+        console.log('⏭️ 모달 이미 초기화됨, 건너뜀');
+        return;
+    }
+    
+    console.log('✅ 모달 이벤트 리스너 등록 시작');
+    
     const modal = document.getElementById('transactionModal');
     const openBtn = document.getElementById('addTransactionBtn');
     const closeBtn = document.querySelector('.modal-close');
@@ -803,6 +866,10 @@ function initializeModal() {
             }
         });
     }
+    
+    // 초기화 완료 플래그 설정
+    isModalInitialized = true;
+    console.log('✅ 모달 초기화 완료');
 }
 
 function closeModal() {
@@ -2487,6 +2554,16 @@ function getStatisticsFilteredTransactions() {
 
 // 버튼 초기화
 function initializeButtons() {
+    console.log('🔘 initializeButtons 호출됨, isButtonsInitialized:', isButtonsInitialized);
+    
+    // 이미 초기화되었다면 종료
+    if (isButtonsInitialized) {
+        console.log('⏭️ 버튼 이미 초기화됨, 건너뜀');
+        return;
+    }
+    
+    console.log('✅ 버튼 이벤트 리스너 등록 시작');
+    
     document.getElementById('exportBtn').addEventListener('click', exportToExcel);
     document.getElementById('resetFiltersBtn').addEventListener('click', resetFilters);
     document.getElementById('marginCalculatorBtn').addEventListener('click', openMarginCalculator);
@@ -2502,6 +2579,10 @@ function initializeButtons() {
             element.addEventListener('change', applyTransactionFilters);
         }
     });
+    
+    // 초기화 완료 플래그 설정
+    isButtonsInitialized = true;
+    console.log('✅ 버튼 초기화 완료');
 }
 
 // 엑셀 다운로드
