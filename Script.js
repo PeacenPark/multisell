@@ -33,6 +33,7 @@ let exchangeRates = {}; // 환율 데이터 저장
 let lastExchangeRateUpdate = null; // 마지막 업데이트 시간
 let encryptionKey = null; // 암호화 키 (비밀번호 기반)
 let isFormInitialized = false; // 폼 초기화 플래그 (이벤트 리스너 중복 방지)
+let isAppInitialized = false; // 앱 초기화 플래그 (onAuthStateChanged 중복 실행 방지)
 
 // DOM 로드 완료 시 초기화
 document.addEventListener('DOMContentLoaded', async function() {
@@ -104,10 +105,13 @@ function decryptData(encryptedData) {
 function initializeAuth() {
     // 인증 상태 변경 감지
     auth.onAuthStateChanged(async (user) => {
+        console.log('🔄 onAuthStateChanged 트리거, user:', user ? user.email : 'null');
+        
         if (user) {
             // 로그인 상태
             currentUser = user;
-            console.log('✅ 로그인됨:', user.email);
+            
+            console.log('✅ 로그인됨:', user.email, '상호명:', user.displayName);
             
             // 세션 스토리지에서 암호화 키 복원
             const savedKey = sessionStorage.getItem('encKey');
@@ -126,11 +130,17 @@ function initializeAuth() {
             document.getElementById('userEmail').textContent = user.email;
             
             // 앱 초기화
+            console.log('📱 initializeApp 호출 시작');
             await initializeApp();
+            console.log('📱 initializeApp 호출 완료');
         } else {
             // 로그아웃 상태
             currentUser = null;
             console.log('❌ 로그아웃됨');
+            
+            // 폼 초기화 플래그 리셋
+            isFormInitialized = false;
+            console.log('🔄 isFormInitialized 리셋됨');
             
             // 앱 화면 숨기기, 로그인 화면 보이기
             document.getElementById('authContainer').style.display = 'flex';
@@ -161,6 +171,21 @@ function initializeAuth() {
             document.getElementById('signupError').textContent = '';
         });
     });
+    
+    // 로그인 화면 표시 함수 (회원가입 후 사용)
+    window.showLoginScreen = function() {
+        // 모든 탭 비활성화
+        authTabs.forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+        
+        // 로그인 탭 활성화
+        document.querySelector('[data-auth-tab="login"]').classList.add('active');
+        document.getElementById('loginForm').classList.add('active');
+        
+        // 에러 메시지 초기화
+        document.getElementById('loginError').textContent = '';
+        document.getElementById('signupError').textContent = '';
+    };
     
     // 로그인 폼 제출
     document.getElementById('loginFormSubmit').addEventListener('submit', async (e) => {
@@ -229,21 +254,39 @@ function initializeAuth() {
         try {
             errorElement.textContent = '';
             
+            console.log('📝 회원가입 시작:', email);
+            
             // 회원가입
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            console.log('✅ 계정 생성 완료');
             
             // 상호명(displayName)을 프로필에 저장
             await userCredential.user.updateProfile({
                 displayName: businessName
             });
+            console.log('✅ 상호명 저장 완료:', businessName);
             
-            // 암호화 키 생성 및 세션 스토리지에 저장
-            encryptionKey = generateEncryptionKey(password);
-            sessionStorage.setItem('encKey', encryptionKey);
-            console.log('✅ 회원가입 성공 및 암호화 키 생성');
+            // 프로필 업데이트 완료 대기
+            await userCredential.user.reload();
+            console.log('✅ 프로필 새로고침 완료, displayName:', userCredential.user.displayName);
             
             // 폼 초기화
             document.getElementById('signupFormSubmit').reset();
+            
+            // 회원가입 후 자동 로그아웃 (사용자가 직접 로그인하도록)
+            console.log('🚪 자동 로그아웃 실행');
+            await auth.signOut();
+            console.log('✅ 로그아웃 완료');
+            
+            // 로그인 화면으로 전환
+            showLoginScreen();
+            
+            // 성공 메시지 표시 (로그인 화면에)
+            alert(`회원가입이 완료되었습니다!\n이메일: ${email}\n상호명: ${businessName}\n\n로그인해주세요.`);
+            
+            // 로그인 이메일 자동 입력
+            document.getElementById('loginEmail').value = email;
+            
         } catch (error) {
             console.error('❌ 회원가입 오류:', error);
             errorElement.textContent = getAuthErrorMessage(error.code);
@@ -826,10 +869,15 @@ function initializeForm() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('purchaseDate').value = today;
 
+    console.log('🔧 initializeForm 호출됨, isFormInitialized:', isFormInitialized);
+    
     // 이벤트 리스너가 이미 등록되었다면 종료
     if (isFormInitialized) {
+        console.log('⏭️ 폼 이미 초기화됨, 건너뜀');
         return;
     }
+
+    console.log('✅ 폼 이벤트 리스너 등록 시작');
 
     // 구매사이트 선택 시 커스텀 입력 표시/숨김
     const purchaseSiteSelect = document.getElementById('purchaseSite');
