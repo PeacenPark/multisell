@@ -41,6 +41,13 @@ let isSigningUp = false; // 회원가입 중 플래그
 let isSubmitting = false; // 폼 제출 중 플래그
 let isCustomDropdownInitialized = false; // 커스텀 드롭다운 이벤트 리스너 초기화 플래그
 
+// 커스텀 드롭다운 이벤트 핸들러 (removeEventListener를 위해 전역 저장)
+let brandAddHandler = null;
+let brandRemoveHandler = null;
+let siteAddHandler = null;
+let siteRemoveHandler = null;
+let brandSelectHandler = null;
+
 // 디버깅 카운터
 let initializeAppCallCount = 0;
 let onAuthStateChangedCallCount = 0;
@@ -2272,27 +2279,48 @@ async function loadCustomDropdownItems() {
         }
     });
 
-    console.log('🔧 커스텀 드롭다운 이벤트 리스너 등록 체크, isCustomDropdownInitialized:', isCustomDropdownInitialized);
+    console.log('🔧 커스텀 드롭다운 이벤트 리스너 설정 시작');
     
-    // 이벤트 리스너가 이미 등록되었다면 종료
-    if (isCustomDropdownInitialized) {
-        console.log('⏭️ 커스텀 드롭다운 이벤트 리스너 이미 등록됨, 건너뜀');
-        return;
+    // DOM 요소 가져오기
+    const addBrandBtn = document.getElementById('addBrandBtn');
+    const removeBrandBtn = document.getElementById('removeBrandBtn');
+    const addSiteBtn = document.getElementById('addSiteBtn');
+    const removeSiteBtn = document.getElementById('removeSiteBtn');
+    
+    // 기존 이벤트 리스너 제거 (중복 방지)
+    if (brandAddHandler) {
+        addBrandBtn.removeEventListener('click', brandAddHandler);
+        console.log('🗑️ 기존 브랜드 추가 리스너 제거');
+    }
+    if (brandRemoveHandler) {
+        removeBrandBtn.removeEventListener('click', brandRemoveHandler);
+        console.log('🗑️ 기존 브랜드 삭제 리스너 제거');
+    }
+    if (siteAddHandler) {
+        addSiteBtn.removeEventListener('click', siteAddHandler);
+        console.log('🗑️ 기존 사이트 추가 리스너 제거');
+    }
+    if (siteRemoveHandler) {
+        removeSiteBtn.removeEventListener('click', siteRemoveHandler);
+        console.log('🗑️ 기존 사이트 삭제 리스너 제거');
+    }
+    if (brandSelectHandler) {
+        brandSelect.removeEventListener('change', brandSelectHandler);
+        console.log('🗑️ 기존 브랜드 선택 리스너 제거');
     }
     
-    console.log('✅ 커스텀 드롭다운 이벤트 리스너 등록 시작');
-
-    // 브랜드 추가 버튼 이벤트
-    document.getElementById('addBrandBtn').addEventListener('click', function() {
+    // 새 이벤트 핸들러 정의
+    brandAddHandler = function() {
+        console.log('➕ 브랜드 추가 버튼 클릭');
         const newBrand = prompt('새 브랜드 이름을 입력하세요:');
         if (newBrand && newBrand.trim()) {
             const brandName = newBrand.trim();
             addCustomBrand(brandName);
         }
-    });
+    };
 
-    // 브랜드 삭제 버튼 이벤트
-    document.getElementById('removeBrandBtn').addEventListener('click', function() {
+    brandRemoveHandler = function() {
+        console.log('➖ 브랜드 삭제 버튼 클릭');
         const brandSelect = document.getElementById('brand');
         const selectedBrand = brandSelect.value;
         
@@ -2309,19 +2337,19 @@ async function loadCustomDropdownItems() {
         }
         
         removeCustomBrand(selectedBrand);
-    });
+    };
 
-    // 구매사이트 추가 버튼 이벤트
-    document.getElementById('addSiteBtn').addEventListener('click', function() {
+    siteAddHandler = function() {
+        console.log('➕ 구매사이트 추가 버튼 클릭');
         const newSite = prompt('새 구매사이트 이름을 입력하세요:');
         if (newSite && newSite.trim()) {
             const siteName = newSite.trim();
             addCustomSite(siteName);
         }
-    });
+    };
 
-    // 구매사이트 삭제 버튼 이벤트
-    document.getElementById('removeSiteBtn').addEventListener('click', function() {
+    siteRemoveHandler = function() {
+        console.log('➖ 구매사이트 삭제 버튼 클릭');
         const siteSelect = document.getElementById('purchaseSite');
         const selectedSite = siteSelect.value;
         
@@ -2338,10 +2366,10 @@ async function loadCustomDropdownItems() {
         }
         
         removeCustomSite(selectedSite);
-    });
+    };
 
-    // 브랜드 선택 이벤트
-    brandSelect.addEventListener('change', function() {
+    brandSelectHandler = function() {
+        console.log('🔄 브랜드 선택 변경');
         const customInput = document.getElementById('brandCustom');
         if (this.value === 'custom') {
             customInput.style.display = 'block';
@@ -2351,10 +2379,15 @@ async function loadCustomDropdownItems() {
             customInput.required = false;
             customInput.value = '';
         }
-    });
+    };
     
-    // 초기화 완료 플래그 설정
-    isCustomDropdownInitialized = true;
+    // 새 이벤트 리스너 등록
+    addBrandBtn.addEventListener('click', brandAddHandler);
+    removeBrandBtn.addEventListener('click', brandRemoveHandler);
+    addSiteBtn.addEventListener('click', siteAddHandler);
+    removeSiteBtn.addEventListener('click', siteRemoveHandler);
+    brandSelect.addEventListener('change', brandSelectHandler);
+    
     console.log('✅ 커스텀 드롭다운 이벤트 리스너 등록 완료');
 }
 
@@ -3598,3 +3631,4 @@ async function rejectUser(uid) {
         alert("거부에 실패했습니다.\n" + error.message);
     }
 }
+
