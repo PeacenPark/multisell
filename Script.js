@@ -38,6 +38,12 @@ let isModalInitialized = false; // 모달 초기화 플래그
 let isButtonsInitialized = false; // 버튼 초기화 플래그
 let isTabsInitialized = false; // 탭 초기화 플래그
 let isSigningUp = false; // 회원가입 중 플래그
+let isSubmitting = false; // 폼 제출 중 플래그
+
+// 디버깅 카운터
+let initializeAppCallCount = 0;
+let onAuthStateChangedCallCount = 0;
+let formSubmitCallCount = 0;
 
 // DOM 로드 완료 시 초기화
 document.addEventListener('DOMContentLoaded', async function() {
@@ -109,7 +115,8 @@ function decryptData(encryptedData) {
 function initializeAuth() {
     // 인증 상태 변경 감지
     auth.onAuthStateChanged(async (user) => {
-        console.log('🔄 onAuthStateChanged 트리거, user:', user ? user.email : 'null', 'isSigningUp:', isSigningUp);
+        onAuthStateChangedCallCount++;
+        console.log(`🔄 onAuthStateChanged 트리거 #${onAuthStateChangedCallCount}, user:`, user ? user.email : 'null', 'isSigningUp:', isSigningUp);
         
         if (user) {
             // 회원가입 중에는 앱 초기화 건너뛰기
@@ -154,7 +161,12 @@ function initializeAuth() {
             isButtonsInitialized = false;
             isTabsInitialized = false;
             isAppInitialized = false;
-            console.log('🔄 모든 초기화 플래그 리셋됨');
+            
+            // 카운터 리셋
+            initializeAppCallCount = 0;
+            formSubmitCallCount = 0;
+            
+            console.log('🔄 모든 초기화 플래그 및 카운터 리셋됨');
             
             // 앱 화면 숨기기, 로그인 화면 보이기
             document.getElementById('authContainer').style.display = 'flex';
@@ -609,11 +621,12 @@ function cleanupOtherUsersData(currentUserId) {
 
 // 앱 초기화 (로그인 후)
 async function initializeApp() {
-    console.log('🚀 initializeApp 호출됨, isAppInitialized:', isAppInitialized);
+    initializeAppCallCount++;
+    console.log(`🚀 initializeApp 호출됨 #${initializeAppCallCount}, isAppInitialized:`, isAppInitialized);
     
     // 이미 초기화되었다면 종료
     if (isAppInitialized) {
-        console.log('⏭️ 앱 이미 초기화됨, 건너뜀');
+        console.warn(`⚠️ 앱 이미 초기화됨! 중복 호출 #${initializeAppCallCount} 차단`);
         return;
     }
     
@@ -1092,11 +1105,14 @@ function initializeForm() {
     // 폼 제출
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
+        console.log('📋 폼 제출 이벤트 트리거됨');
         await addTransaction();
     });
     
     // 초기화 완료 플래그 설정
     isFormInitialized = true;
+    console.log('✅ 폼 초기화 완료, isFormInitialized =', isFormInitialized);
+    console.log(`📊 상태 요약: initializeAppCallCount=${initializeAppCallCount}, formSubmitCallCount=${formSubmitCallCount}`);
 }
 
 // 실시간 계산
@@ -1138,15 +1154,29 @@ function calculateRealtime() {
 
 // 거래 추가/수정
 async function addTransaction() {
-    const form = document.getElementById('transactionForm');
-    const editingId = form.getAttribute('data-editing-id');
-    const isEditing = !!editingId;
+    formSubmitCallCount++;
+    console.log(`📝 addTransaction 호출됨 #${formSubmitCallCount}, isSubmitting:`, isSubmitting);
+    
+    // 이미 제출 중이면 중복 실행 방지
+    if (isSubmitting) {
+        console.warn(`⚠️ 이미 제출 중! 중복 호출 #${formSubmitCallCount} 차단`);
+        return;
+    }
+    
+    // 제출 중 플래그 설정
+    isSubmitting = true;
+    console.log('🔒 제출 시작, isSubmitting = true');
+    
+    try {
+        const form = document.getElementById('transactionForm');
+        const editingId = form.getAttribute('data-editing-id');
+        const isEditing = !!editingId;
 
-    // 브랜드 값 가져오기 (custom 선택 시 brandCustom 값 사용)
-    const brandSelect = document.getElementById('brand');
-    const brandValue = brandSelect.value === 'custom' ? 
-        document.getElementById('brandCustom').value : 
-        brandSelect.value;
+        // 브랜드 값 가져오기 (custom 선택 시 brandCustom 값 사용)
+        const brandSelect = document.getElementById('brand');
+        const brandValue = brandSelect.value === 'custom' ? 
+            document.getElementById('brandCustom').value : 
+            brandSelect.value;
 
     const transaction = {
         buyerName: document.getElementById('buyerName').value,
@@ -1257,6 +1287,12 @@ async function addTransaction() {
     // 화면 업데이트
     updateStatistics();
     displayTransactions();
+    
+    } finally {
+        // 제출 중 플래그 해제
+        isSubmitting = false;
+        console.log('🔓 제출 완료, isSubmitting = false');
+    }
 }
 
 // 거래 삭제
