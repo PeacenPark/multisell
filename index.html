@@ -7,23 +7,71 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- 로그인/회원가입 화면 -->
+    <div id="authContainer" class="auth-container">
+        <div class="auth-box">
+            <h1>🌍 해외 직구 구매 대행 관리</h1>
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-auth-tab="login">로그인</button>
+                <button class="auth-tab" data-auth-tab="signup">회원가입</button>
+            </div>
+            
+            <!-- 로그인 폼 -->
+            <div id="loginForm" class="auth-form active">
+                <h2>로그인</h2>
+                <form id="loginFormSubmit">
+                    <div class="form-group">
+                        <label for="loginEmail">이메일</label>
+                        <input type="email" id="loginEmail" placeholder="example@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">비밀번호</label>
+                        <input type="password" id="loginPassword" placeholder="비밀번호 입력" required>
+                    </div>
+                    <button type="submit" class="auth-btn">로그인</button>
+                </form>
+                <p class="auth-error" id="loginError"></p>
+            </div>
+            
+            <!-- 회원가입 폼 -->
+            <div id="signupForm" class="auth-form">
+                <h2>회원가입</h2>
+                <form id="signupFormSubmit">
+                    <div class="form-group">
+                        <label for="signupEmail">이메일</label>
+                        <input type="email" id="signupEmail" placeholder="example@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signupPassword">비밀번호</label>
+                        <input type="password" id="signupPassword" placeholder="6자 이상 입력" minlength="6" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signupPasswordConfirm">비밀번호 확인</label>
+                        <input type="password" id="signupPasswordConfirm" placeholder="비밀번호 재입력" minlength="6" required>
+                    </div>
+                    <button type="submit" class="auth-btn">회원가입</button>
+                </form>
+                <p class="auth-error" id="signupError"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 앱 화면 (로그인 후 표시) -->
+    <!-- 메인 앱 화면 (로그인 후 표시) -->
+    <div id="appContainer" class="app-container" style="display: none;">
     <div class="container">
         <header>
-            <div class="header-left">
-                <h1>🌍 해외 직구 구매 대행 관리</h1>
-            </div>
-            <div class="header-right">
+            <h1>🌍 해외 직구 구매 대행 관리</h1>
+            <div class="header-actions">
                 <div class="user-info">
-                    <img id="userPhoto" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23667eea'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='white' font-size='16' font-family='Arial'%3E👤%3C/text%3E%3C/svg%3E" alt="User" class="user-avatar">
-                    <div class="user-details">
-                        <span id="userName" class="user-name">사용자</span>
-                        <span id="userEmail" class="user-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="e590968097a5809d8488958980cb868a88">[email&#160;protected]</a></span>
-                    </div>
+                    <span id="userEmail"></span>
                 </div>
-                <button onclick="deleteAccount()" class="delete-account-btn" title="회원 탈퇴">🗑️</button>
-                <button onclick="logout()" class="logout-btn" title="로그아웃">🚪</button>
                 <div class="sync-status">
                     <span id="syncStatus" class="status-offline">⚫ 오프라인</span>
+                </div>
+                <div class="auth-buttons">
+                    <button id="logoutBtn" class="btn-logout">로그아웃</button>
+                    <button id="deleteAccountBtn" class="btn-delete-account">회원탈퇴</button>
                 </div>
             </div>
         </header>
@@ -537,6 +585,12 @@
     </div>
 
     <!-- Firebase SDK -->
-    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.c
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="script.js"></script>
+</div>
+</body>
+</html>

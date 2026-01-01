@@ -19,7 +19,7 @@ body {
 
 header {
     background: white;
-    padding: 20px 30px;
+    padding: 30px;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     margin-bottom: 30px;
@@ -30,101 +30,10 @@ header {
     gap: 15px;
 }
 
-.header-left h1 {
+header h1 {
     color: #333;
     font-size: 2rem;
     margin: 0;
-}
-
-.header-right {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    flex-wrap: wrap;
-}
-
-/* 사용자 정보 영역 */
-.user-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 16px;
-    background: #f8f9fa;
-    border-radius: 25px;
-}
-
-.user-avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    object-fit: cover;
-    background: #667eea;
-}
-
-.user-details {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.user-name {
-    font-weight: 600;
-    font-size: 14px;
-    color: #333;
-    white-space: nowrap;
-}
-
-.user-email {
-    font-size: 12px;
-    color: #666;
-    white-space: nowrap;
-}
-
-/* 로그아웃 버튼 */
-.logout-btn {
-    padding: 8px 16px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 18px;
-    transition: all 0.3s ease;
-    min-width: 44px;
-    height: 44px;
-}
-
-.logout-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.logout-btn:active {
-    transform: translateY(0);
-}
-
-/* 회원 탈퇴 버튼 */
-.delete-account-btn {
-    padding: 8px 16px;
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 18px;
-    transition: all 0.3s ease;
-    min-width: 44px;
-    height: 44px;
-}
-
-.delete-account-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-}
-
-.delete-account-btn:active {
-    transform: translateY(0);
 }
 
 .sync-status {
@@ -963,39 +872,13 @@ h2 {
     }
 
     header {
-        padding: 15px 20px;
+        padding: 20px;
+        flex-direction: column;
+        align-items: flex-start;
     }
 
-    .header-left h1 {
+    header h1 {
         font-size: 1.5rem;
-    }
-    
-    .header-right {
-        margin-top: 10px;
-    }
-    
-    .user-info {
-        padding: 6px 12px;
-    }
-    
-    .user-name {
-        font-size: 13px;
-    }
-    
-    .user-email {
-        font-size: 11px;
-    }
-    
-    .logout-btn {
-        padding: 6px 12px;
-        font-size: 16px;
-    }
-    
-    .delete-account-btn {
-        padding: 6px 12px;
-        font-size: 16px;
-        min-width: 40px;
-        height: 40px;
     }
 
     .tab-nav {
@@ -1107,52 +990,8 @@ h2 {
 }
 
 @media (max-width: 480px) {
-    header {
-        padding: 15px 20px;
-    }
-    
-    .header-left h1 {
+    header h1 {
         font-size: 1.2rem;
-    }
-    
-    .header-right {
-        width: 100%;
-        justify-content: space-between;
-    }
-    
-    .user-info {
-        padding: 6px 12px;
-    }
-    
-    .user-details {
-        max-width: 120px;
-        overflow: hidden;
-    }
-    
-    .user-name {
-        font-size: 13px;
-        text-overflow: ellipsis;
-        overflow: hidden;
-    }
-    
-    .user-email {
-        font-size: 11px;
-        text-overflow: ellipsis;
-        overflow: hidden;
-    }
-    
-    .logout-btn {
-        padding: 6px 12px;
-        font-size: 16px;
-        min-width: 40px;
-        height: 40px;
-    }
-    
-    .delete-account-btn {
-        padding: 6px 12px;
-        font-size: 16px;
-        min-width: 40px;
-        height: 40px;
     }
 
     .stat-value {
@@ -1161,5 +1000,225 @@ h2 {
 
     .calc-item strong {
         font-size: 1.1rem;
+    }
+}
+
+/* ========================================
+   인증 (로그인/회원가입) 스타일
+   ======================================== */
+.auth-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.auth-box {
+    background: white;
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 450px;
+    width: 90%;
+}
+
+.auth-box h1 {
+    color: #333;
+    font-size: 1.5rem;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.auth-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 12px 20px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #666;
+    transition: all 0.3s ease;
+}
+
+.auth-tab:hover {
+    color: #667eea;
+}
+
+.auth-tab.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+.auth-form {
+    display: none;
+}
+
+.auth-form.active {
+    display: block;
+}
+
+.auth-form h2 {
+    color: #333;
+    font-size: 1.3rem;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.auth-form .form-group {
+    margin-bottom: 20px;
+}
+
+.auth-form label {
+    display: block;
+    margin-bottom: 8px;
+    color: #555;
+    font-weight: 600;
+}
+
+.auth-form input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+.auth-form input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.auth-btn {
+    width: 100%;
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-top: 10px;
+}
+
+.auth-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.auth-btn:active {
+    transform: translateY(0);
+}
+
+.auth-error {
+    color: #e74c3c;
+    font-size: 0.9rem;
+    margin-top: 15px;
+    text-align: center;
+    min-height: 20px;
+}
+
+/* 헤더 액션 버튼들 */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.user-info {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.user-info span {
+    font-weight: 600;
+}
+
+.auth-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-logout,
+.btn-delete-account {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-logout {
+    background: #667eea;
+    color: white;
+}
+
+.btn-logout:hover {
+    background: #5568d3;
+    transform: translateY(-2px);
+}
+
+.btn-delete-account {
+    background: #e74c3c;
+    color: white;
+}
+
+.btn-delete-account:hover {
+    background: #c0392b;
+    transform: translateY(-2px);
+}
+
+/* 앱 컨테이너 */
+.app-container {
+    display: none;
+}
+
+.app-container.active {
+    display: block;
+}
+
+/* 반응형 - 인증 화면 */
+@media (max-width: 768px) {
+    .auth-box {
+        padding: 30px 20px;
+    }
+
+    .auth-box h1 {
+        font-size: 1.3rem;
+    }
+
+    .header-actions {
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .auth-buttons {
+        width: 100%;
+    }
+
+    .btn-logout,
+    .btn-delete-account {
+        flex: 1;
     }
 }
