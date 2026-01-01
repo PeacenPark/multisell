@@ -1254,6 +1254,19 @@ async function addTransaction() {
         }
 
         transactions.unshift(transaction); // 최신 거래를 앞에 추가
+        
+        // 중복 체크 (같은 ID가 2개 이상 있는지 확인)
+        const duplicateCount = transactions.filter(t => t.id === transaction.id).length;
+        if (duplicateCount > 1) {
+            console.error('❌ 중복 거래 감지! ID:', transaction.id, '개수:', duplicateCount);
+            // 중복 제거 (가장 최근 것만 남김)
+            const firstIndex = transactions.findIndex(t => t.id === transaction.id);
+            transactions = transactions.filter((t, index) => 
+                t.id !== transaction.id || index === firstIndex
+            );
+            console.log('✅ 중복 제거 완료, 남은 거래 수:', transactions.length);
+        }
+        
         saveTransactions(); // 로컬스토리지에도 백업
         alert('거래가 성공적으로 등록되었습니다!');
     }
