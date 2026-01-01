@@ -459,17 +459,48 @@ function initializeAuth() {
                     const user = auth.currentUser;
                     const userId = user.uid;
                     
-                    // 1. 로컬스토리지 데이터 삭제
+                    console.log('🗑️ 회원탈퇴 시작, 사용자 UID:', userId);
+                    
+                    // 1. 메모리 데이터 초기화
+                    transactions = [];
+                    encryptionKey = null;
+                    
+                    // 2. 세션 스토리지 삭제
+                    sessionStorage.clear();
+                    console.log('✅ 세션 스토리지 삭제 완료');
+                    
+                    // 3. 로컬스토리지 데이터 삭제
                     try {
+                        // 현재 사용자 데이터 삭제
                         localStorage.removeItem(`overseasTransactions_${userId}`);
                         localStorage.removeItem(`customBrands_${userId}`);
                         localStorage.removeItem(`customSites_${userId}`);
+                        
+                        // 혹시 모를 다른 키 패턴도 삭제
+                        const keysToRemove = [];
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i);
+                            if (key && (
+                                key.includes(userId) || 
+                                key.startsWith('overseasTransactions_') ||
+                                key.startsWith('customBrands_') ||
+                                key.startsWith('customSites_')
+                            )) {
+                                keysToRemove.push(key);
+                            }
+                        }
+                        
+                        keysToRemove.forEach(key => {
+                            localStorage.removeItem(key);
+                            console.log('🗑️ 로컬스토리지 삭제:', key);
+                        });
+                        
                         console.log('✅ 로컬스토리지 데이터 삭제 완료');
                     } catch (error) {
                         console.error('⚠️ 로컬스토리지 삭제 오류:', error);
                     }
                     
-                    // 2. Firebase 데이터 삭제 시도 (실패해도 계속 진행)
+                    // 4. Firebase 데이터 삭제 시도 (실패해도 계속 진행)
                     if (isFirebaseEnabled) {
                         try {
                             // 거래 데이터 삭제
@@ -500,11 +531,15 @@ function initializeAuth() {
                         }
                     }
                     
-                    // 3. 계정 삭제
+                    // 5. 계정 삭제
                     await user.delete();
                     
                     console.log('✅ 회원탈퇴 성공');
                     alert('회원탈퇴가 완료되었습니다.');
+                    
+                    // 6. 계정정보 모달 닫기
+                    document.getElementById('accountInfoModal').style.display = 'none';
+                    
                 } catch (error) {
                     console.error('❌ 회원탈퇴 오류:', error);
                     if (error.code === 'auth/requires-recent-login') {
@@ -538,6 +573,40 @@ function getAuthErrorMessage(errorCode) {
     return errorMessages[errorCode] || '오류가 발생했습니다. 다시 시도해주세요.';
 }
 
+// 다른 사용자의 로컬스토리지 데이터 정리
+function cleanupOtherUsersData(currentUserId) {
+    try {
+        console.log('🧹 로컬스토리지 정리 시작, 현재 사용자 UID:', currentUserId);
+        
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (
+                key.startsWith('overseasTransactions_') ||
+                key.startsWith('customBrands_') ||
+                key.startsWith('customSites_')
+            )) {
+                // 현재 사용자의 키가 아닌 경우 삭제 목록에 추가
+                if (!key.includes(currentUserId)) {
+                    keysToRemove.push(key);
+                }
+            }
+        }
+        
+        if (keysToRemove.length > 0) {
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                console.log('🗑️ 다른 사용자 데이터 삭제:', key);
+            });
+            console.log(`✅ ${keysToRemove.length}개의 이전 사용자 데이터 정리 완료`);
+        } else {
+            console.log('✅ 정리할 데이터 없음');
+        }
+    } catch (error) {
+        console.error('⚠️ 로컬스토리지 정리 오류:', error);
+    }
+}
+
 // 앱 초기화 (로그인 후)
 async function initializeApp() {
     console.log('🚀 initializeApp 호출됨, isAppInitialized:', isAppInitialized);
@@ -555,6 +624,9 @@ async function initializeApp() {
     if (user) {
         document.getElementById('userBusinessName').textContent = user.displayName || '상호명 미설정';
         document.getElementById('userEmail').textContent = user.email;
+        
+        // 다른 사용자의 로컬스토리지 데이터 정리
+        cleanupOtherUsersData(user.uid);
     }
     
     initializeTabs();
