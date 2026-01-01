@@ -39,6 +39,7 @@ let isButtonsInitialized = false; // 버튼 초기화 플래그
 let isTabsInitialized = false; // 탭 초기화 플래그
 let isSigningUp = false; // 회원가입 중 플래그
 let isSubmitting = false; // 폼 제출 중 플래그
+let isCustomDropdownInitialized = false; // 커스텀 드롭다운 이벤트 리스너 초기화 플래그
 
 // 디버깅 카운터
 let initializeAppCallCount = 0;
@@ -203,6 +204,7 @@ function initializeAuth() {
             isButtonsInitialized = false;
             isTabsInitialized = false;
             isAppInitialized = false;
+            isCustomDropdownInitialized = false;
             
             // 카운터 리셋
             initializeAppCallCount = 0;
@@ -2270,6 +2272,16 @@ async function loadCustomDropdownItems() {
         }
     });
 
+    console.log('🔧 커스텀 드롭다운 이벤트 리스너 등록 체크, isCustomDropdownInitialized:', isCustomDropdownInitialized);
+    
+    // 이벤트 리스너가 이미 등록되었다면 종료
+    if (isCustomDropdownInitialized) {
+        console.log('⏭️ 커스텀 드롭다운 이벤트 리스너 이미 등록됨, 건너뜀');
+        return;
+    }
+    
+    console.log('✅ 커스텀 드롭다운 이벤트 리스너 등록 시작');
+
     // 브랜드 추가 버튼 이벤트
     document.getElementById('addBrandBtn').addEventListener('click', function() {
         const newBrand = prompt('새 브랜드 이름을 입력하세요:');
@@ -2340,6 +2352,10 @@ async function loadCustomDropdownItems() {
             customInput.value = '';
         }
     });
+    
+    // 초기화 완료 플래그 설정
+    isCustomDropdownInitialized = true;
+    console.log('✅ 커스텀 드롭다운 이벤트 리스너 등록 완료');
 }
 
 // 커스텀 브랜드 추가
