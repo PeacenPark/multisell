@@ -30,6 +30,7 @@
                     </div>
                     <button type="submit" class="auth-btn">로그인</button>
                 </form>
+                <p class="forgot-password"><a href="#" id="forgotPasswordLink">비밀번호를 잊으셨나요?</a></p>
                 <p class="auth-error" id="loginError"></p>
             </div>
             
@@ -38,15 +39,19 @@
                 <h2>회원가입</h2>
                 <form id="signupFormSubmit">
                     <div class="form-group">
-                        <label for="signupEmail">이메일</label>
+                        <label for="signupBusinessName">상호명 *</label>
+                        <input type="text" id="signupBusinessName" placeholder="예: 홍길동 무역" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="signupEmail">이메일 *</label>
                         <input type="email" id="signupEmail" placeholder="example@email.com" required>
                     </div>
                     <div class="form-group">
-                        <label for="signupPassword">비밀번호</label>
+                        <label for="signupPassword">비밀번호 *</label>
                         <input type="password" id="signupPassword" placeholder="6자 이상 입력" minlength="6" required>
                     </div>
                     <div class="form-group">
-                        <label for="signupPasswordConfirm">비밀번호 확인</label>
+                        <label for="signupPasswordConfirm">비밀번호 확인 *</label>
                         <input type="password" id="signupPasswordConfirm" placeholder="비밀번호 재입력" minlength="6" required>
                     </div>
                     <button type="submit" class="auth-btn">회원가입</button>
@@ -64,12 +69,14 @@
             <h1>🌍 해외 직구 구매 대행 관리</h1>
             <div class="header-actions">
                 <div class="user-info">
-                    <span id="userEmail"></span>
+                    <span id="userBusinessName"></span>
+                    <small id="userEmail"></small>
                 </div>
                 <div class="sync-status">
                     <span id="syncStatus" class="status-offline">⚫ 오프라인</span>
                 </div>
                 <div class="auth-buttons">
+                    <button id="accountInfoBtn" class="btn-account">⚙️ 계정 정보</button>
                     <button id="logoutBtn" class="btn-logout">로그아웃</button>
                     <button id="deleteAccountBtn" class="btn-delete-account">회원탈퇴</button>
                 </div>
@@ -580,6 +587,60 @@
                 </div>
 
                 <button type="button" class="btn-reset" id="resetCalculatorBtn">🔄 초기화</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 계정 정보 모달 -->
+    <div id="accountInfoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ 계정 정보</h2>
+                <button class="modal-close account-close">&times;</button>
+            </div>
+            <div class="account-info-container">
+                <!-- 기본 정보 -->
+                <div class="account-section">
+                    <h3>📋 기본 정보</h3>
+                    <div class="info-item">
+                        <label>이메일:</label>
+                        <span id="accountEmail">-</span>
+                    </div>
+                </div>
+
+                <!-- 상호명 변경 -->
+                <div class="account-section">
+                    <h3>🏢 상호명 변경</h3>
+                    <form id="updateBusinessNameForm">
+                        <div class="form-group">
+                            <label for="newBusinessName">새 상호명</label>
+                            <input type="text" id="newBusinessName" placeholder="예: 홍길동 무역" required>
+                        </div>
+                        <button type="submit" class="btn-submit">상호명 변경</button>
+                    </form>
+                    <p class="form-message" id="businessNameMessage"></p>
+                </div>
+
+                <!-- 비밀번호 변경 -->
+                <div class="account-section">
+                    <h3>🔒 비밀번호 변경</h3>
+                    <form id="updatePasswordForm">
+                        <div class="form-group">
+                            <label for="currentPassword">현재 비밀번호</label>
+                            <input type="password" id="currentPassword" placeholder="현재 비밀번호 입력" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newPassword">새 비밀번호</label>
+                            <input type="password" id="newPassword" placeholder="6자 이상 입력" minlength="6" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newPasswordConfirm">새 비밀번호 확인</label>
+                            <input type="password" id="newPasswordConfirm" placeholder="비밀번호 재입력" minlength="6" required>
+                        </div>
+                        <button type="submit" class="btn-submit">비밀번호 변경</button>
+                    </form>
+                    <p class="form-message" id="passwordMessage"></p>
+                </div>
             </div>
         </div>
     </div>

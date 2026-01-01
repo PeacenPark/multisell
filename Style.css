@@ -1135,6 +1135,23 @@ h2 {
     min-height: 20px;
 }
 
+.forgot-password {
+    text-align: center;
+    margin-top: 15px;
+}
+
+.forgot-password a {
+    color: #667eea;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.3s ease;
+}
+
+.forgot-password a:hover {
+    color: #764ba2;
+    text-decoration: underline;
+}
+
 /* 헤더 액션 버튼들 */
 .header-actions {
     display: flex;
@@ -1144,12 +1161,21 @@ h2 {
 }
 
 .user-info {
-    color: #666;
-    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 .user-info span {
     font-weight: 600;
+    color: #333;
+    font-size: 1rem;
+}
+
+.user-info small {
+    color: #999;
+    font-size: 0.85rem;
+    margin-top: 2px;
 }
 
 .auth-buttons {
@@ -1158,7 +1184,8 @@ h2 {
 }
 
 .btn-logout,
-.btn-delete-account {
+.btn-delete-account,
+.btn-account {
     padding: 10px 20px;
     border: none;
     border-radius: 8px;
@@ -1166,6 +1193,16 @@ h2 {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+}
+
+.btn-account {
+    background: #28a745;
+    color: white;
+}
+
+.btn-account:hover {
+    background: #218838;
+    transform: translateY(-2px);
 }
 
 .btn-logout {
@@ -1186,6 +1223,59 @@ h2 {
 .btn-delete-account:hover {
     background: #c0392b;
     transform: translateY(-2px);
+}
+
+/* 계정 정보 모달 */
+.account-info-container {
+    padding: 20px;
+}
+
+.account-section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.account-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.account-section h3 {
+    color: #333;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+}
+
+.info-item label {
+    font-weight: 600;
+    color: #555;
+}
+
+.info-item span {
+    color: #333;
+}
+
+.form-message {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    text-align: center;
+    min-height: 20px;
+}
+
+.form-message.success {
+    color: #28a745;
+}
+
+.form-message.error {
+    color: #e74c3c;
 }
 
 /* 앱 컨테이너 */
@@ -1211,14 +1301,22 @@ h2 {
         flex-direction: column;
         align-items: flex-start;
         width: 100%;
+        gap: 10px;
     }
 
     .auth-buttons {
         width: 100%;
+        flex-wrap: wrap;
     }
 
     .btn-logout,
-    .btn-delete-account {
+    .btn-delete-account,
+    .btn-account {
         flex: 1;
+        min-width: 120px;
+    }
+
+    .user-info {
+        width: 100%;
     }
 }

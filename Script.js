@@ -112,9 +112,32 @@ function initializeAuth() {
         }
     });
     
+    // 비밀번호 찾기 링크
+    document.getElementById('forgotPasswordLink').addEventListener('click', async (e) => {
+        e.preventDefault();
+        const email = prompt('가입하신 이메일 주소를 입력하세요:');
+        
+        if (email) {
+            try {
+                await auth.sendPasswordResetEmail(email);
+                alert('비밀번호 재설정 이메일을 발송했습니다.\n이메일을 확인해주세요.');
+            } catch (error) {
+                console.error('❌ 비밀번호 재설정 오류:', error);
+                if (error.code === 'auth/user-not-found') {
+                    alert('존재하지 않는 이메일입니다.');
+                } else if (error.code === 'auth/invalid-email') {
+                    alert('유효하지 않은 이메일 주소입니다.');
+                } else {
+                    alert('비밀번호 재설정 이메일 발송에 실패했습니다.');
+                }
+            }
+        }
+    });
+    
     // 회원가입 폼 제출
     document.getElementById('signupFormSubmit').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const businessName = document.getElementById('signupBusinessName').value.trim();
         const email = document.getElementById('signupEmail').value;
         const password = document.getElementById('signupPassword').value;
         const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
@@ -126,9 +149,23 @@ function initializeAuth() {
             return;
         }
         
+        // 상호명 확인
+        if (!businessName) {
+            errorElement.textContent = '상호명을 입력해주세요.';
+            return;
+        }
+        
         try {
             errorElement.textContent = '';
-            await auth.createUserWithEmailAndPassword(email, password);
+            
+            // 회원가입
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            
+            // 상호명(displayName)을 프로필에 저장
+            await userCredential.user.updateProfile({
+                displayName: businessName
+            });
+            
             console.log('✅ 회원가입 성공');
             
             // 폼 초기화
@@ -158,6 +195,113 @@ function initializeAuth() {
         }
     });
     
+    // 계정 정보 모달 열기
+    document.getElementById('accountInfoBtn').addEventListener('click', () => {
+        const user = auth.currentUser;
+        if (user) {
+            // 현재 정보 표시
+            document.getElementById('accountEmail').textContent = user.email;
+            document.getElementById('newBusinessName').value = user.displayName || '';
+            
+            // 메시지 초기화
+            document.getElementById('businessNameMessage').textContent = '';
+            document.getElementById('businessNameMessage').className = 'form-message';
+            document.getElementById('passwordMessage').textContent = '';
+            document.getElementById('passwordMessage').className = 'form-message';
+            
+            // 비밀번호 폼 초기화
+            document.getElementById('updatePasswordForm').reset();
+            
+            // 모달 열기
+            document.getElementById('accountInfoModal').style.display = 'flex';
+        }
+    });
+    
+    // 계정 정보 모달 닫기
+    document.querySelector('.account-close').addEventListener('click', () => {
+        document.getElementById('accountInfoModal').style.display = 'none';
+    });
+    
+    // 상호명 변경
+    document.getElementById('updateBusinessNameForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const newBusinessName = document.getElementById('newBusinessName').value.trim();
+        const messageElement = document.getElementById('businessNameMessage');
+        
+        if (!newBusinessName) {
+            messageElement.textContent = '상호명을 입력해주세요.';
+            messageElement.className = 'form-message error';
+            return;
+        }
+        
+        try {
+            const user = auth.currentUser;
+            await user.updateProfile({
+                displayName: newBusinessName
+            });
+            
+            // 헤더 업데이트
+            document.getElementById('userBusinessName').textContent = newBusinessName;
+            
+            messageElement.textContent = '상호명이 변경되었습니다.';
+            messageElement.className = 'form-message success';
+            
+            console.log('✅ 상호명 변경 성공');
+        } catch (error) {
+            console.error('❌ 상호명 변경 오류:', error);
+            messageElement.textContent = '상호명 변경에 실패했습니다.';
+            messageElement.className = 'form-message error';
+        }
+    });
+    
+    // 비밀번호 변경
+    document.getElementById('updatePasswordForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const newPasswordConfirm = document.getElementById('newPasswordConfirm').value;
+        const messageElement = document.getElementById('passwordMessage');
+        
+        // 비밀번호 확인
+        if (newPassword !== newPasswordConfirm) {
+            messageElement.textContent = '새 비밀번호가 일치하지 않습니다.';
+            messageElement.className = 'form-message error';
+            return;
+        }
+        
+        try {
+            const user = auth.currentUser;
+            const credential = firebase.auth.EmailAuthProvider.credential(
+                user.email,
+                currentPassword
+            );
+            
+            // 재인증
+            await user.reauthenticateWithCredential(credential);
+            
+            // 비밀번호 변경
+            await user.updatePassword(newPassword);
+            
+            messageElement.textContent = '비밀번호가 변경되었습니다.';
+            messageElement.className = 'form-message success';
+            
+            // 폼 초기화
+            document.getElementById('updatePasswordForm').reset();
+            
+            console.log('✅ 비밀번호 변경 성공');
+        } catch (error) {
+            console.error('❌ 비밀번호 변경 오류:', error);
+            if (error.code === 'auth/wrong-password') {
+                messageElement.textContent = '현재 비밀번호가 올바르지 않습니다.';
+            } else if (error.code === 'auth/weak-password') {
+                messageElement.textContent = '새 비밀번호가 너무 약합니다.';
+            } else {
+                messageElement.textContent = '비밀번호 변경에 실패했습니다.';
+            }
+            messageElement.className = 'form-message error';
+        }
+    });
+    
     // 회원탈퇴 버튼
     document.getElementById('deleteAccountBtn').addEventListener('click', async () => {
         const confirmMessage = '정말로 회원탈퇴하시겠습니까?\n\n모든 데이터가 삭제되며 복구할 수 없습니다.';
@@ -170,26 +314,48 @@ function initializeAuth() {
                     const user = auth.currentUser;
                     const userId = user.uid;
                     
-                    // 사용자의 모든 거래 데이터 삭제
-                    const snapshot = await db.collection('transactions')
-                        .where('userId', '==', userId)
-                        .get();
+                    // 1. 로컬스토리지 데이터 삭제
+                    try {
+                        localStorage.removeItem(`overseasTransactions_${userId}`);
+                        localStorage.removeItem(`customBrands_${userId}`);
+                        localStorage.removeItem(`customSites_${userId}`);
+                        console.log('✅ 로컬스토리지 데이터 삭제 완료');
+                    } catch (error) {
+                        console.error('⚠️ 로컬스토리지 삭제 오류:', error);
+                    }
                     
-                    const deletePromises = [];
-                    snapshot.forEach(doc => {
-                        deletePromises.push(doc.ref.delete());
-                    });
-                    await Promise.all(deletePromises);
+                    // 2. Firebase 데이터 삭제 시도 (실패해도 계속 진행)
+                    if (isFirebaseEnabled) {
+                        try {
+                            // 거래 데이터 삭제
+                            const transactionsSnapshot = await db.collection('transactions')
+                                .where('userId', '==', userId)
+                                .get();
+                            
+                            const deletePromises = [];
+                            transactionsSnapshot.forEach(doc => {
+                                deletePromises.push(doc.ref.delete().catch(err => {
+                                    console.warn('⚠️ 거래 삭제 실패:', doc.id, err);
+                                }));
+                            });
+                            await Promise.allSettled(deletePromises);
+                            console.log('✅ Firebase 거래 데이터 삭제 시도 완료');
+                            
+                            // 커스텀 드롭다운 데이터 삭제
+                            const customBrandsDoc = db.collection('customDropdowns').doc(`brands_${userId}`);
+                            const customSitesDoc = db.collection('customDropdowns').doc(`sites_${userId}`);
+                            await Promise.allSettled([
+                                customBrandsDoc.delete().catch(err => console.warn('⚠️ 브랜드 삭제 실패:', err)),
+                                customSitesDoc.delete().catch(err => console.warn('⚠️ 사이트 삭제 실패:', err))
+                            ]);
+                            console.log('✅ Firebase 커스텀 데이터 삭제 시도 완료');
+                        } catch (error) {
+                            console.warn('⚠️ Firebase 데이터 삭제 중 오류 (계속 진행):', error);
+                            // Firebase 삭제 실패해도 계속 진행
+                        }
+                    }
                     
-                    // 커스텀 드롭다운 데이터 삭제
-                    const customBrandsDoc = db.collection('customDropdowns').doc(`brands_${userId}`);
-                    const customSitesDoc = db.collection('customDropdowns').doc(`sites_${userId}`);
-                    await Promise.all([
-                        customBrandsDoc.delete(),
-                        customSitesDoc.delete()
-                    ]);
-                    
-                    // 계정 삭제
+                    // 3. 계정 삭제
                     await user.delete();
                     
                     console.log('✅ 회원탈퇴 성공');
@@ -198,8 +364,10 @@ function initializeAuth() {
                     console.error('❌ 회원탈퇴 오류:', error);
                     if (error.code === 'auth/requires-recent-login') {
                         alert('보안을 위해 다시 로그인한 후 탈퇴를 진행해주세요.');
+                    } else if (error.code === 'permission-denied') {
+                        alert('Firebase 보안 규칙 설정이 필요합니다.\n\nFirebase Console에서 Firestore 보안 규칙을 설정한 후 다시 시도해주세요.\n자세한 내용은 README.MD 파일을 참조하세요.');
                     } else {
-                        alert('회원탈퇴 중 오류가 발생했습니다.');
+                        alert('회원탈퇴 중 오류가 발생했습니다.\n오류: ' + error.message);
                     }
                 }
             }
@@ -227,6 +395,13 @@ function getAuthErrorMessage(errorCode) {
 
 // 앱 초기화 (로그인 후)
 async function initializeApp() {
+    // 사용자 정보 표시
+    const user = auth.currentUser;
+    if (user) {
+        document.getElementById('userBusinessName').textContent = user.displayName || '상호명 미설정';
+        document.getElementById('userEmail').textContent = user.email;
+    }
+    
     initializeTabs();
     initializeModal();
     initializeForm();
@@ -462,6 +637,23 @@ function initializeModal() {
             closeModal();
         }
     });
+    
+    // 계정 정보 모달 배경 클릭 시 닫기
+    const accountModal = document.getElementById('accountInfoModal');
+    if (accountModal) {
+        accountModal.addEventListener('click', function(e) {
+            if (e.target === accountModal) {
+                accountModal.style.display = 'none';
+            }
+        });
+        
+        // ESC 키로 계정 정보 모달 닫기
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && accountModal.style.display === 'flex') {
+                accountModal.style.display = 'none';
+            }
+        });
+    }
 }
 
 function closeModal() {
