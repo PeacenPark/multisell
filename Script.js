@@ -196,6 +196,19 @@ function initializeAuth() {
             // 사용자 이메일 표시
             document.getElementById('userEmail').textContent = user.email;
             
+            // ========================================
+            // 옵션: 계정 변경 시 자동 새로고침 (필요 시 주석 해제)
+            // ========================================
+            // const lastLoginUser = sessionStorage.getItem('lastLoginUser');
+            // if (lastLoginUser && lastLoginUser !== user.uid) {
+            //     console.log('🔄 계정 변경 감지, 페이지 새로고침');
+            //     sessionStorage.setItem('lastLoginUser', user.uid);
+            //     location.reload();
+            //     return;
+            // }
+            // sessionStorage.setItem('lastLoginUser', user.uid);
+            // ========================================
+            
             // 앱 초기화
             console.log('📱 initializeApp 호출 시작');
             await initializeApp();
@@ -2233,15 +2246,28 @@ async function loadCustomDropdownItems() {
     const brandSelect = document.getElementById('brand');
     const customOption = brandSelect.querySelector('option[value="custom"]');
     
+    // 기존 커스텀 브랜드 옵션 제거 (기본 브랜드와 "직접 입력"은 제외)
+    const defaultBrands = ['Nike', 'Adidas', 'Apple', 'Samsung', 'Sony'];
+    Array.from(brandSelect.options).forEach(opt => {
+        if (opt.value && opt.value !== 'custom' && opt.value !== '' && !defaultBrands.includes(opt.value)) {
+            opt.remove();
+        }
+    });
+    console.log('🗑️ 기존 커스텀 브랜드 옵션 제거 완료');
+    
+    // 새 커스텀 브랜드 추가
     customBrands.forEach(brand => {
         const option = document.createElement('option');
         option.value = brand;
         option.textContent = brand;
         brandSelect.insertBefore(option, customOption);
     });
+    console.log(`✅ 커스텀 브랜드 ${customBrands.length}개 추가됨`);
 
-    // 브랜드 필터 datalist에 모달의 기본 브랜드 추가
+    // 브랜드 필터 datalist 초기화 및 추가
     const brandList = document.getElementById('brandList');
+    brandList.innerHTML = ''; // 기존 datalist 옵션 모두 제거
+    
     // 모달의 기본 브랜드 옵션 가져오기 (custom 제외)
     Array.from(brandSelect.options).forEach(opt => {
         if (opt.value && opt.value !== 'custom' && opt.value !== '') {
@@ -2255,12 +2281,23 @@ async function loadCustomDropdownItems() {
     const siteSelect = document.getElementById('purchaseSite');
     const otherOption = siteSelect.querySelector('option[value="other"]');
     
+    // 기존 커스텀 사이트 옵션 제거 (기본 사이트와 "기타"는 제외)
+    const defaultSites = ['amazon', 'ebay', 'aliexpress', 'rakuten', 'iherb', 'costco'];
+    Array.from(siteSelect.options).forEach(opt => {
+        if (opt.value && opt.value !== 'other' && opt.value !== '' && !defaultSites.includes(opt.value)) {
+            opt.remove();
+        }
+    });
+    console.log('🗑️ 기존 커스텀 사이트 옵션 제거 완료');
+    
+    // 새 커스텀 사이트 추가
     customSites.forEach(site => {
         const option = document.createElement('option');
         option.value = site;
         option.textContent = site;
         siteSelect.insertBefore(option, otherOption);
     });
+    console.log(`✅ 커스텀 사이트 ${customSites.length}개 추가됨`);
 
     // 구매사이트 필터 datalist에 모달의 기본 사이트 추가 (기타 항목 앞에)
     const siteList = document.getElementById('siteList');
@@ -3631,4 +3668,3 @@ async function rejectUser(uid) {
         alert("거부에 실패했습니다.\n" + error.message);
     }
 }
-
